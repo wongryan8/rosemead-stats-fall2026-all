@@ -1,0 +1,1358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta name="robots" content="noindex, nofollow">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>League Tournament Dashboard</title>
+    <style>
+        :root { --bg: #f3f4f6; --surface: #ffffff; --text: #1f2937; --fire: #b91c1c; --earth: #166534; --air: #d97706; --water: #1d4ed8; --accent-m: #2563eb; --accent-w: #db2777; --accent-s: #10b981; }
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background-color: var(--bg); color: var(--text); margin: 0; padding: 15px; }
+        .container { max-width: 1000px; margin: 0 auto; position: relative; }
+        header { text-align: center; margin-bottom: 20px; }
+        .tabs { display: flex; gap: 8px; margin-bottom: 20px; background: #e5e7eb; padding: 6px; border-radius: 8px; overflow-x: auto; white-space: nowrap; }
+        .tab-btn { flex: 1; padding: 10px 14px; border: none; background: transparent; font-weight: bold; font-size: 0.9rem; cursor: pointer; border-radius: 6px; color: #4b5563; }
+        .tab-btn.active { background: var(--surface); color: #1f2937; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .panel { background: var(--surface); padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; position: relative; }
+        .panel.season-panel { border-left: 6px solid var(--accent-s); }
+        h2 { margin-top: 0; font-size: 1.25rem; border-bottom: 2px solid var(--bg); padding-bottom: 8px; margin-bottom: 15px;}
+        .admin-link { color: #3b82f6; font-weight: bold; text-decoration: underline; font-size: 0.8rem; cursor: pointer; position: absolute; top: 20px; right: 20px; background: transparent; border: 0; padding: 0; font-family: inherit; z-index: 20; } .admin-link:hover { color: #1d4ed8; } .participation-status{color:#6b7280;font-size:.78rem;margin-top:-8px}.participation-link{color:#059669;font-weight:bold;text-decoration:underline;font-size:.8rem;cursor:pointer;background:transparent;border:0;padding:0;font-family:inherit;margin-right:16px}.participation-link:hover{color:#047857}.participation-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1100;justify-content:center;align-items:center}.participation-content{background:white;padding:20px;border-radius:12px;width:92%;max-width:760px;max-height:88vh;overflow-y:auto;box-shadow:0 10px 25px rgba(0,0,0,.2)}.participation-team{margin:14px 0}.participation-team h4{margin:8px 0}.participation-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:7px 12px}.participation-grid label{display:flex;gap:7px;align-items:center;font-size:.9rem;padding:5px 0}.participation-actions{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap} .admin-link:focus { outline: 2px solid #93c5fd; outline-offset: 3px; border-radius: 3px; }
+        .admin-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-content { background: white; padding: 25px; border-radius: 12px; width: 90%; max-width: 500px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+        textarea { width: 100%; height: 140px; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-family: monospace; font-size: 0.95rem; margin-bottom: 10px; resize: vertical; }
+        button.plot-btn { width: 100%; padding: 12px; border: none; border-radius: 6px; font-size: 1rem; font-weight: bold; cursor: pointer; background: #1f2937; color: white; margin-bottom: 10px; }
+        button.close-btn { width: 100%; padding: 10px; border: none; border-radius: 6px; font-size: 0.9rem; font-weight: bold; cursor: pointer; background: #e5e7eb; color: #4b5563; }
+        .games-grid { display: flex; flex-direction: column; gap: 35px; }
+        .game-card { overflow: hidden; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; background: #ffffff; display: flex; flex-direction: column; gap: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); position: relative; }
+        .game-title { font-size: 1.25rem; margin: 0; font-weight: bold; text-align: left; color: #1f2937; border-left: 4px solid #4b5563; padding-left: 10px; }
+        .chart-wrapper { position: relative; width: 100%; overflow-x: hidden; background: #ffffff; border-radius: 6px; padding: 10px; box-sizing: border-box; border: 1px solid #e5e7eb; }
+        .chart-controls { display:flex; align-items:center; gap:8px; padding:2px 4px 7px; font-size:.75rem; color:#6b7280; }
+        .chart-zoom { flex:1; min-width:90px; accent-color:#6b7280; height:28px; }
+        .chart-zoom-value { min-width:42px; text-align:right; font-weight:700; color:#4b5563; }
+        .chart-reset { border:1px solid #d1d5db; background:#fff; color:#4b5563; border-radius:5px; padding:4px 7px; font-size:.72rem; cursor:pointer; }
+        .chart-scroll { width:100%; overflow-x:auto; overflow-y:hidden; -webkit-overflow-scrolling:touch; }
+        svg { display: block; background: #ffffff; }
+        .chart-dot { cursor: pointer; transition: r 0.15s ease; }
+        .chart-dot:hover, .chart-dot:focus { r: 8.5px; filter: brightness(1.1); outline: none; }
+        .tooltip { position: fixed; background: rgba(17, 24, 39, 0.78); color: #ffffff; padding: 8px 12px; border-radius: 6px; font-size: 0.85rem; pointer-events: none; display: none; box-shadow: 0 4px 10px rgba(0,0,0,0.2); z-index: 100; max-width: 280px; line-height: 1.4; border-left: 4px solid #9ca3af; }
+        .legend { display: flex; justify-content: flex-start; gap: 20px; margin-top: -5px; padding-left: 5px; }
+        .legend-item { display: flex; align-items: center; gap: 6px; }
+        .stats-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-top: 5px; }
+        .stats-table th, .stats-table td { padding: 8px 10px; text-align: left; border-bottom: 1px solid #e5e7eb; }
+        .stats-table th { background: #f3f4f6; font-weight: bold; color: #4b5563; cursor:pointer; user-select:none; } .stats-table th:hover { background:#e5e7eb; } .stats-table th.sort-asc::after { content:" ▲"; } .stats-table th.sort-desc::after { content:" ▼"; }
+        .log-warning { margin: 10px 0 8px 0; padding: 10px 12px; border: 1px solid #f59e0b; background: #fffbeb; color: #92400e; border-radius: 8px; font-size: 0.86rem; }
+        .log-warning strong { color: #78350f; }
+        .table-group-header { font-weight: 800; text-transform: uppercase; font-size: 0.8rem; color: white; letter-spacing: 0.05em; padding: 6px 10px !important; }
+        .table-subgroup-header { background: #f9fafb; font-weight: bold; font-size: 0.75rem; color: #6b7280; padding-left: 15px !important; }
+        .gender-grid { display: grid; grid-template-columns: 1fr; gap: 20px; }
+        @media(min-width: 768px) { .gender-grid { grid-template-columns: 1fr 1fr; } }
+        .gender-panel { padding: 15px; border-radius: 8px; background: #f9fafb; border-top: 4px solid var(--accent-m); }
+        .gender-panel.women { border-top-color: var(--accent-w); }
+        .stat-section-title { font-size: 0.9rem; font-weight: bold; margin: 12px 0 6px 0; color: #4b5563; text-transform: uppercase; background: #e5e7eb; padding: 4px 8px; border-radius: 4px; }
+        .leader-row { display: flex; justify-content: space-between; font-size: 0.85rem; padding: 6px 8px; border-bottom: 1px dashed rgba(0,0,0,0.1); font-weight: 500; }
+
+
+        .season-team-totals { margin-top: 20px; }
+        .season-team-total-card { border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px; margin-top: 10px; background: #f9fafb; }
+        .season-team-total-name { font-weight: 800; font-size: 1rem; margin-bottom: 8px; }
+        .season-team-total-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+        .season-team-total-stat { background: #fff; border: 1px solid #e5e7eb; border-radius: 6px; padding: 8px; text-align: center; }
+        .season-team-total-stat strong { display: block; font-size: 1.05rem; margin-top: 2px; }
+
+        .season-standings-wrap { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .season-standings-table { width: 100%; min-width: 760px; border-collapse: collapse; font-size: 0.9rem; }
+        .season-standings-table th, .season-standings-table td { padding: 9px 10px; border-bottom: 1px solid #e5e7eb; text-align: center; white-space: nowrap; }
+        .season-standings-table th:first-child, .season-standings-table td:first-child { text-align: left; }
+        .season-standings-table thead th { background: #f3f4f6; font-weight: 800; }
+        .season-standings-team { font-weight: 800; }
+        .season-record { font-weight: 800; }
+        .season-score { font-weight: 600; }
+        .season-team-totals, .season-leaders-section, .season-roster-stats { margin-top: 24px; }
+        .season-team-total-card { margin-top: 10px; }
+        .season-roster-note { margin: -4px 0 12px; color: #6b7280; font-size: 0.88rem; }
+        .season-roster-team { margin-top: 18px; }
+        .season-roster-team-title { font-weight: 800; font-size: 1.05rem; margin-bottom: 8px; }
+        .season-roster-table-wrap { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .season-roster-table { width: 100%; min-width: 680px; border-collapse: collapse; font-size: 0.88rem; }
+        .season-roster-table th, .season-roster-table td { padding: 7px 9px; border-bottom: 1px solid #e5e7eb; text-align: center; }
+        .season-roster-table th:first-child, .season-roster-table td:first-child { text-align: left; }
+        .season-roster-table thead th { background: #f3f4f6; font-weight: 800; cursor:pointer; user-select:none; position:sticky; top:0; z-index:8; } .season-roster-table thead th:hover { background:#e5e7eb; } .season-roster-table thead th.sort-asc::after { content:" ▲"; } .season-roster-table thead th.sort-desc::after { content:" ▼"; }
+        .season-roster-table th:first-child, .season-roster-table td:first-child { position:sticky; left:0; z-index:6; background:#ffffff; box-shadow:2px 0 3px rgba(0,0,0,.05); }
+        .season-roster-table thead th:first-child { z-index:10; background:#f3f4f6; }
+        .season-roster-table .gender-label { color: #6b7280; font-weight: 700; }
+        @media (max-width: 767px) {
+            .season-standings-table { min-width: 760px; }
+            .season-roster-table { min-width: 680px; }
+        }
+        /* Responsive layout: desktop + phone */
+        html { -webkit-text-size-adjust: 100%; }
+        body { overflow-x: hidden; }
+        .container { width: 100%; box-sizing: border-box; }
+        .panel { box-sizing: border-box; }
+        .chart-wrapper { overflow-x: hidden; overflow-y: hidden; }
+        .chart-wrapper > div:first-child { min-width: 0; }
+        .stats-table-wrap { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .stats-table { min-width: 680px; }
+        .team-total-row td { font-weight: 800; border-top: 2px solid #d1d5db; background: #f3f4f6; }
+        .team-total-label { font-weight: 800; }
+        .team-total-summary { margin-top: 12px; padding: 12px; border-radius: 8px; background: #f9fafb; border: 1px solid #e5e7eb; }
+        .team-total-title { font-weight: 800; margin-bottom: 8px; }
+        .team-total-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+        .team-total-stat { background: #fff; border: 1px solid #e5e7eb; border-radius: 6px; padding: 8px; text-align: center; }
+        .team-total-stat strong { display: block; font-size: 1.05rem; margin-top: 2px; }
+        @media (max-width: 767px) {
+            .team-total-grid, .season-team-total-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); overflow: hidden; }
+            .team-total-stat, .season-team-total-stat { min-width: 0; box-sizing: border-box; overflow-wrap: anywhere; }
+            .team-total-summary, .season-team-total-card { max-width: 100%; box-sizing: border-box; overflow: hidden; }
+        }
+        .legend { flex-wrap: wrap; row-gap: 8px; }
+        @media (max-width: 767px) {
+            body { padding: 8px; }
+            header { margin-bottom: 12px; }
+            header h1 { font-size: 1.35rem; line-height: 1.25; margin: 6px 0 12px; }
+            .tabs { gap: 4px; padding: 4px; margin-bottom: 12px; scrollbar-width: thin; }
+            .tab-btn { flex: 0 0 auto; min-width: 76px; min-height: 44px; padding: 10px 12px; font-size: .85rem; }
+            .panel { padding: 12px; border-radius: 10px; margin-bottom: 12px; }
+            h2 { font-size: 1.05rem; padding-bottom: 7px; margin-bottom: 10px; }
+            .game-card { padding: 12px; gap: 10px; }
+            .game-title { font-size: 1.05rem; padding-left: 8px; }
+            .chart-wrapper { padding: 4px; }
+            .chart-controls { padding: 1px 3px 6px; font-size:.7rem; }
+            .chart-zoom-value { min-width:38px; }
+            .tooltip { max-width: 145px; font-size: .68rem; line-height: 1.2; padding: 4px 6px; border-left-width: 3px; background: rgba(17,24,39,.62); }
+            .chart-wrapper svg { max-width: none; }
+            .legend { gap: 12px; font-size: .8rem; }
+            .admin-link { top: 12px; right: 12px; font-size: .75rem; min-height: 40px; padding: 8px 4px; }
+            .modal-content { width: calc(100% - 24px); max-height: calc(100dvh - 24px); overflow-y: auto; box-sizing: border-box; padding: 16px; }
+            textarea { font-size: 16px; min-height: 180px; }
+            button.plot-btn, button.close-btn { min-height: 46px; }
+            .gender-grid { gap: 12px; }
+            .gender-panel { padding: 10px; }
+            .leader-row { font-size: .82rem; padding: 7px 6px; }
+            .table-group-header { font-size: .72rem; }
+            .table-subgroup-header { font-size: .7rem; }
+        }
+        @media (min-width: 768px) {
+            .panel { padding: 20px; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            * { scroll-behavior: auto !important; transition: none !important; }
+        }
+    
+/* v20: mobile-first touch/responsive improvements */
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { width: 100%; max-width: 100%; overflow-x: hidden; }
+img, svg, canvas { max-width: 100%; }
+button, input, textarea, select { font: inherit; }
+@media (max-width: 767px) {
+  body { padding: 8px; }
+  header h1 { font-size: 1.3rem; line-height: 1.25; }
+  .tabs { overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; scrollbar-width: thin; }
+  .tab-btn { flex: 0 0 auto; min-width: 84px; min-height: 44px; }
+  .panel { width: 100%; padding: 12px; margin-bottom: 12px; }
+  .game-card { width: 100%; padding: 12px; }
+  .chart-wrapper { width: 100%; overflow-x: hidden; overflow-y: hidden; }
+  .chart-wrapper > div { min-width: 0; }
+  .chart-scroll { width: 100%; min-width: 0; max-width: 100%; overflow-x: auto; overflow-y: hidden; }
+  .chart-scroll > div { width: max-content; min-width: 0; }
+  .chart-wrapper svg { max-width: none; }
+  .legend { flex-wrap: wrap; row-gap: 8px; }
+  .admin-link { min-height: 40px; padding: 8px 4px; }
+  .modal-content { width: calc(100% - 24px); max-height: calc(100dvh - 24px); overflow-y: auto; padding: 16px; }
+  textarea { font-size: 16px; min-height: 180px; }
+  button.plot-btn, button.close-btn { min-height: 46px; }
+  .stats-table-wrap, .panel > div[style*="overflow-x:auto"] { width: 100%; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .stats-table { min-width: 680px; }
+}
+@media (min-width: 768px) {
+  .panel { padding: 20px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { scroll-behavior: auto !important; transition: none !important; }
+}
+
+        .all-data-intro { color:#4b5563; margin:0 0 14px; }
+        .duo-legend { display:flex; flex-wrap:wrap; gap:8px; margin:12px 0 18px; }
+        .duo-legend-item { display:inline-flex; align-items:center; gap:7px; padding:7px 10px; border-radius:7px; font-size:.82rem; font-weight:700; border:1px solid transparent; }
+        .duo-mm { background:#dbeafe; color:#1e40af; border-color:#93c5fd; }
+        .duo-mf { background:#fef3c7; color:#92400e; border-color:#fcd34d; }
+        .duo-fm { background:#dcfce7; color:#166534; border-color:#86efac; }
+        .duo-ff { background:#fce7f3; color:#9d174d; border-color:#f9a8d4; }
+        .duo-unknown { background:#f3f4f6; color:#374151; border-color:#d1d5db; }
+        .all-data-game { margin:16px 0 22px; }
+        .duo-top5-section { margin:18px 0 24px; }
+        .duo-top5-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+        .duo-top5-card { border:1px solid #e5e7eb; border-radius:9px; overflow:hidden; min-width:0; }
+        .duo-top5-card h3 { margin:0; padding:10px 12px; font-size:.95rem; }
+        .duo-category-heading { display:flex; justify-content:space-between; align-items:baseline; gap:10px; flex-wrap:wrap; }
+        .duo-category-total { font-size:.82rem; font-weight:600; white-space:nowrap; }
+        .duo-top5-card table { width:100%; border-collapse:collapse; font-size:.88rem; }
+        .duo-top5-card th,.duo-top5-card td { text-align:left; padding:8px 10px; border-bottom:1px solid #e5e7eb; }
+        .duo-top5-card th:last-child,.duo-top5-card td:last-child { text-align:right; white-space:nowrap; }
+        .duo-top5-card tr:last-child td { border-bottom:0; }
+        @media(max-width:640px){ .duo-top5-grid{grid-template-columns:1fr;} }
+        .all-data-game h3 { margin:0 0 8px; padding:10px 12px; border-radius:8px; background:#f3f4f6; font-size:1rem; }
+        .all-data-table-wrap { overflow-x:auto; }
+        .all-data-table { width:100%; border-collapse:collapse; font-size:.88rem; }
+        .all-data-table th,.all-data-table td { padding:9px 10px; text-align:left; border-bottom:1px solid #e5e7eb; white-space:nowrap; }
+        .all-data-table th { background:#f9fafb; }
+        .all-data-table tr.duo-mm-row { background:#eff6ff; }
+        .all-data-table tr.duo-mf-row { background:#fffbeb; }
+        .all-data-table tr.duo-fm-row { background:#f0fdf4; }
+        .all-data-table tr.duo-ff-row { background:#fdf2f8; }
+        .all-data-table tr.duo-unknown-row { background:#f9fafb; }
+        .duo-type { display:inline-block; border-radius:5px; padding:4px 7px; font-weight:700; font-size:.78rem; }
+        @media(max-width:640px){ .all-data-table{font-size:.8rem;} .all-data-table th,.all-data-table td{padding:8px 7px;} }
+</style>
+</head>
+<body>
+<div class="container" id="dashboardWrapper">
+    <header><h1>🥏 Rosemead League Fall 2026 Stats 🔥⛰️💨🌊 </h1></header>
+    <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('allData')">All Data</button>
+        <button class="tab-btn" onclick="switchTab('season')">Season Totals</button>
+        <button class="tab-btn" onclick="switchWeek(1)">Week 1 (9/14)</button>
+        <button class="tab-btn" onclick="switchWeek(2)">Week 2 (9/21)</button>
+        <button class="tab-btn" onclick="switchWeek(3)">Week 3 (9/28)</button>
+        <button class="tab-btn" onclick="switchWeek(4)">Week 4 (10/5)</button>
+        <button class="tab-btn" onclick="switchWeek(5)">Week 5 (10/19)</button>
+        <button class="tab-btn" onclick="switchWeek(6)">Week 6 - Game 1 (10/26)</button>
+        <button class="tab-btn" onclick="switchWeek(7)">Week 6 - Game 2 (10/26)</button>
+    </div>
+    <div id="allDataView" style="display:block;">
+        <div class="panel">
+            <h2>🤝 All Data — Every Goal/Assist Connection</h2>
+            <p class="all-data-intro">Every scored point found in the game logs is listed below, grouped by week and game. The color and label identify the gender combination of the scorer and assist.</p>
+            <div class="duo-legend">
+                <span class="duo-legend-item duo-mm">MMP → MMP</span>
+                <span class="duo-legend-item duo-mf">MMP scorer ← FMP assist</span>
+                <span class="duo-legend-item duo-fm">FMP scorer ← MMP assist</span>
+                <span class="duo-legend-item duo-ff">FMP → FMP</span>
+                <span class="duo-legend-item duo-unknown">Missing / unrecognized duo</span>
+            </div>
+            <div id="allDataContent"></div>
+        </div>
+    </div>
+    <div id="seasonView" style="display:none;">
+        <div class="panel season-panel">
+            <h2>📊 Team Standings</h2>
+            <div class="season-standings-wrap">
+                <table class="season-standings-table">
+                    <thead><tr><th>Team</th><th>W-L</th><th>Week 1</th><th>Week 2</th><th>Week 3</th><th>Week 4</th><th>Week 5</th><th>Week 6 - Game 1</th><th>Week 6 - Game 2</th></tr></thead>
+                    <tbody id="seasonStandings"></tbody>
+                </table>
+            </div>
+
+            <div class="season-team-totals">
+                <h2>📈 Team Totals</h2>
+                <div id="seasonTeamTotals"></div>
+            </div>
+
+            <div class="season-leaders-section">
+                <h2>👑 Cumulative Season Leaders (All Weeks Combined) — Top 5</h2>
+                <div class="gender-grid">
+                    <div class="gender-panel men"><h3 style="margin:0 0 10px 0; color:var(--accent-m);">MMP</h3><div id="globalMenLeaders"></div></div>
+                    <div class="gender-panel women"><h3 style="margin:0 0 10px 0; color:var(--accent-w);">FMP</h3><div id="globalWomenLeaders"></div></div>
+                </div>
+            </div>
+
+            <div class="season-duos-section">
+                <h2>🤝 Cumulative End-Zone Connections — Top 5 Duos</h2>
+                <div id="seasonDuos" class="leader-grid"></div>
+            </div>
+
+            <div class="season-roster-stats">
+                <h2>👥 Individual Season Stats</h2>
+                <div id="seasonRosterStats"></div>
+            </div>
+        </div>
+    </div>
+    <div id="weekView">
+    <div class="panel">
+        <h2 id="weeklyLeadersTitle">🏆 Week Leaders</h2>
+        <div class="gender-grid">
+            <div class="gender-panel men"><h3 style="margin:0 0 10px 0; color:var(--accent-m);">MMP</h3><div id="menLeaders"></div></div>
+            <div class="gender-panel women"><h3 style="margin:0 0 10px 0; color:var(--accent-w);">FMP</h3><div id="womenLeaders"></div></div>
+        </div>
+    </div>
+    <div class="panel">
+        <h2 id="weeklyDuosTitle">🤝 End-Zone Connections — Top 5 Duos</h2>
+        <div id="weeklyDuos" class="leader-grid"></div>
+    </div>
+    <div class="panel">
+        <h2 id="weekDisplayTitle">Week 1 Breakdown</h2>
+        <div class="games-grid">
+            <div class="game-card">
+                <div class="game-title" id="g1-title">Matchup 1</div>
+                <div class="chart-wrapper"><div class="chart-controls"><span>Zoom</span><input class="chart-zoom" id="g1-zoom" type="range" min="80" max="180" value="100" step="10" aria-label="Chart zoom"><span class="chart-zoom-value" id="g1-zoom-value">100%</span><button class="chart-reset" type="button" onclick="resetChartZoom('g1')">Reset</button></div><div class="chart-scroll"><div id="g1-chart"></div></div><div id="g1-tooltip" class="tooltip"></div></div>
+                <div class="legend" id="g1-legend"></div><div class="participation-status" id="g1-participation-status"></div><button type="button" class="admin-link" onclick="openAdminModal('g1'); return false;">Edit Logs</button>
+                <div id="g1-warnings"></div>
+                <div style="overflow-x:auto;"><table class="stats-table"><thead><tr><th onclick="sortGameTable('g1',0)">Player</th><th onclick="sortGameTable('g1',1)">Gender</th><th onclick="sortGameTable('g1',2)">Score</th><th onclick="sortGameTable('g1',3)">Assist</th><th onclick="sortGameTable('g1',4)">Block</th><th onclick="sortGameTable('g1',5)">Handler Turnover</th><th onclick="sortGameTable('g1',6)">Cutter Turnover</th></tr></thead><tbody id="g1-table"></tbody></table></div>
+            </div>
+            <div class="game-card">
+                <div class="game-title" id="g2-title">Matchup 2</div>
+                <div class="chart-wrapper"><div class="chart-controls"><span>Zoom</span><input class="chart-zoom" id="g2-zoom" type="range" min="80" max="180" value="100" step="10" aria-label="Chart zoom"><span class="chart-zoom-value" id="g2-zoom-value">100%</span><button class="chart-reset" type="button" onclick="resetChartZoom('g2')">Reset</button></div><div class="chart-scroll"><div id="g2-chart"></div></div><div id="g2-tooltip" class="tooltip"></div></div>
+                <div class="legend" id="g2-legend"></div><div class="participation-status" id="g2-participation-status"></div><button type="button" class="admin-link" onclick="openAdminModal('g2'); return false;">Edit Logs</button>
+                <div id="g2-warnings"></div>
+                <div style="overflow-x:auto;"><table class="stats-table"><thead><tr><th onclick="sortGameTable('g2',0)">Player</th><th onclick="sortGameTable('g2',1)">Gender</th><th onclick="sortGameTable('g2',2)">Score</th><th onclick="sortGameTable('g2',3)">Assist</th><th onclick="sortGameTable('g2',4)">Block</th><th onclick="sortGameTable('g2',5)">Handler Turnover</th><th onclick="sortGameTable('g2',6)">Cutter Turnover</th></tr></thead><tbody id="g2-table"></tbody></table></div>
+            </div>
+        </div>
+    </div>
+
+    </div>
+
+<div class="admin-modal" id="adminModal">
+    <div class="modal-content">
+        <h3>Modify Selected Game Data</h3>
+        <textarea id="dataInput" placeholder="TEAM SCORE-GOAL GOALPLAYER ASSISTPLAYER / B PLAYER B PLAYER HT PLAYER CT PLAYER"></textarea>
+        <button class="plot-btn" onclick="saveAndPlot()">Save & Update</button>
+        <button class="close-btn" onclick="closeAdminModal()">Cancel</button>
+    </div>
+</div>
+<script>
+    var rosters = {
+        "Fire Nation": { 
+            Men: ["Ben L", "Cory", "Grant", "Jacob (Zuko)", "JT", "Nick", "Quack", "Quake", "Ryan", "Stephen", "Thom (Fire)"], 
+            Women: ["Emily", "Keili", "Mindy (Fire)", "Pam", "Webster", "Grace (Fire)"] 
+        },
+        "Earth Kingdom": { 
+            Men: ["Andy (Ender)", "Antonio", "Daniel", "Derek", "Eok", "Google", "Jordan (Sugarloaf)", "Kevin", "Nathaniel", "Owen Z", "Winston", "Jackson (Earth)", "Rico"], 
+            Women: ["Alanis", "Ann", "Carmen", "Uniss (Sonny)", "Maddie (Earth)", "Briana (Earth)", "Zuma (Earth)", "Emily (Earth)"] 
+        },
+        "Air Nomads": { 
+            Men: ["Abe", "Andrew H", "Anthony G", "Ben (Chain)", "Duke", "Jacob", "Jae", "Leon", "Maarten", "Mitchell", "Victor", "Claw", "Thom"], 
+            Women: ["Amber", "Bao", "Cheryl", "Emily (Air)", "Kim", "Zuma (Air)", "Mindy (Air)", "Briana (Air)", "Maddie (Air)", "Karen", "Natalie (Air)"] 
+        },
+        "Water Tribe": { 
+            Men: ["Alvin", "Anderson", "Andrew P", "Dylan", "Jimmy", "Matt", "Owen M", "Shane", "Simeon (Quartz)", "Tony", "Jackson", "Taka"], 
+            Women: ["Anna", "Delaney", "Heidy", "Natalie", "Joya"] 
+        }
+    };
+
+    var teamColors = { "Fire Nation": "#b91c1c", "Earth Kingdom": "#166534", "Air Nomads": "#d97706", "Water Tribe": "#1d4ed8" };
+    var textBgColors = { "Fire Nation": "rgba(185,28,28,0.08)", "Earth Kingdom": "rgba(22,101,52,0.08)", "Air Nomads": "rgba(217,119,6,0.08)", "Water Tribe": "rgba(29,78,216,0.08)" };
+
+    var leagueData = {
+        w1: { 
+            g1: { name: "Fire Nation vs Air Nomads", t1: "Fire Nation", t2: "Air Nomads", raw: "Start,0,0,Commenced\nFN 1-0 Mindy (Fire) Cory\nAN 1-1 Bao Abe / HT Victor Nick / B Victor\nAN 1-2 Amber Anthony G / HT Mindy (Fire) Jacob (Zuko) Jacob (Zuko)\nAN 1-3 Ben (Chain) Jae / B Kim / HT Amber Jae Nick Stephen / CT Nick\nFN 2-3 JT Cory / HT Andrew H\nAN 2-4 Mitchell Ben (Chain) / HT Jae Abe Webster / B Quake\nFN 3-4 Stephen Quack \nAN 3-5 Emily (Air) Ben (Chain) \nFN 4-5 Cory Quack / B Cory / HT Webster Bao Victor Pam\nAN 4-6 Jae Kim / HT Abe Nick / CT Nick\nFN 5-6 Quack Cory / B Quake Duke / HT Jae Kim \nFN 6-6 Stephen Pam / CT Nick Stephen\nFN 7-6 Quack Pam / HT Andrew H\nAN 7-7 Jae Ben (Chain)\nFN 8-7 Ryan Quack\nFN 9-7 Pam Quake / B Quack / HT Abe\nAN 9-8 Ben (Chain) Victor\nAN 9-9 Mitchell Abe / B Mindy (Fire) / CT Mindy (Fire)\nFN 10-9 Webster Grant / HT Victor Mindy (Fire) Anthony G / CT Mindy (Fire) Nick\nAN 10-10 Mitchell Abe\nFN 11-10 Cory Jacob (Zuko) / CT Mindy (Fire)\nFN 12-10 Pam Grant / B Grant Duke Webster / HT Stephen\nFN 13-10 Cory Quake / B Cory\nFN 14-10 JT Jacob (Zuko) /B Mindy (Fire) / HT Abe Duke / CT Jacob (Zuko)\nFN 15-10 Stephen Cory / CT Duke" }, 
+            g2: { name: "Earth Kingdom vs Water Tribe", t1: "Earth Kingdom", t2: "Water Tribe", raw: "Start,0,0,Commenced\nEK 1-0 Uniss (Sonny) Derek / HT Google Matt \n WT 1-1 Jimmy Tony / B Tony / HT Tony Tony Tony Ann \n EK 2-1 Antonio Uniss (Sonny) / B Antonio Matt / HT Andy (Ender) Matt Matt Shane Alvin \n WT 2-2 Jimmy Dylan / B Dylan / HT Heidy Winston / CT Tony Alanis \n WT 2-3 Dylan Tony / B Jordan (Sugarloaf) / HT Jordan (Sugarloaf) / CT Google \n EK 3-3 Andy (Ender) Antonio / HT Jordan (Sugarloaf) \n EK 4-3 Google Antonio / B Jordan (Sugarloaf) Simeon (Quartz) Matt/ HT Winston Simeon (Quartz) Natalie Owen M \n EK 5-3 Derek Jordan (Sugarloaf) / B Shane / HT Eok Shane Shane Shane Shane/ CT Alvin \n EK 6-3 Alanis Google / B Andy (Ender) / HT Andy (Ender) Ann Dylan Andrew P Tony \nWT 6-4 Shane Simeon (Quartz) / B Anderson / HT Simeon (Quartz) Jordan (Sugarloaf)/ CT Owen M\n WT 6-5 Alvin Shane / HT Daniel \n EK 7-5 Ann Winston / HT Daniel/ CT Owen M \n WT 7-6 Dylan Owen M / B Delaney / HT Andy (Ender) \n EK 8-6 Alanis Andy (Ender) / HT Derek Google \n WT 8-7 Owen M Matt / HT Ann \n WT 8-8 Anderson Shane / B Shane / HT Google \n WT 8-9 Shane Dylan / HT Derek\n WT 8-10 Delaney Dylan / B Andrew P Andy (Ender) Eok /HT Andy (Ender)/ CT Andy (Ender) \n EK 9-10 Uniss (Sonny) Daniel / B Simeon (Quartz) / HT Tony Daniel / CT Tony \n WT 9-11 Heidy Dylan / HT Dylan / B Winston / HT Ann Jordan (Sugarloaf) Jordan (Sugarloaf) \n EK 10-11 Uniss (Sonny) Andy (Ender) \n WT 10-12 Shane Anderson / B Andrew P Delaney Natalie Google / HT Owen M Andrew P Shane Google / CT Owen M \n EK 11-12 Uniss (Sonny) Eok\n WT 11-13 Alvin Tony \n EK 12-13 Ann Daniel / HT Google Anderson \n EK 13-13 Uniss (Sonny) Andy (Ender) / B Uniss (Sonny) / HT Google \n EK 14-13 Uniss (Sonny) Andy (Ender) / HT Dylan \n EK 15-13 Winston Google / B Antonio / HT Owen M" }
+        },
+        w2: { 
+            g1: { name: "Fire Nation vs Earth Kingdom", t1: "Fire Nation", t2: "Earth Kingdom", raw: "Start,0,0,Commenced\n FN 1-0 Ryan Mindy (Fire) \n EK 1-1 Ann Kevin / HT Cory Nathaniel / B Andy (Ender) \n EK 1-2 Owen Z Carmen / HT Quake \n FN 2-2 Stephen Quake \n EK 2-3 Kevin Uniss (Sonny) \n EK 2-4 Google Ann / HT Ryan \n FN 3-4 Quack Pam \n EK 3-5 Eok Jordan (Sugarloaf) / B Ann Webster/ HT Google Jordan (Sugarloaf) Stephen Jacob (Zuko) Jacob (Zuko)/ CT Eok \n FN 4-5 Quack Cory \n FN 5-5 Mindy (Fire) Cory / HT Jordan (Sugarloaf) \n EK 5-6 Uniss (Sonny) Owen Z / B Owen Z Winston / HT Cory Kevin / CT Stephen Winston \n FN 6-6 Cory Quake / HT Derek \n EK 6-7 Owen Z Daniel / HT Jacob (Zuko) \n FN 7-7 Cory Quack \n FN 8-7 Pam Cory / HT Quake Google Carmen \n EK 8-8 Owen Z Kevin \n FN 9-8 Cory Quack \n FN 10-8 Jacob (Zuko) Mindy (Fire) / B Ryan Ryan/ HT Owen Z Owen Z Jacob (Zuko) JT \n FN 11-8 Cory Quack / HT Google \n EK 11-9 Uniss (Sonny) Kevin / B Owen Z /HT Webster Quack / CT Owen Z \n FN 12-9 Quack Cory / HT JT Jordan (Sugarloaf) \n EK 12-10 Owen Z Jordan (Sugarloaf) / B Quake / HT Ben L Quack Cory / CT Keili \n EK 12-11 Alanis Google / B Owen Z / HT Owen Z Google \n FN 13-11 Stephen Ryan / CT Winston \n EK 13-12 Ann Owen Z / CT Quack / HT Cory \n EK 13-13 Carmen Google / B Kevin / HT Winston \n FN 14-13 Cory Pam \n EK 14-14 Uniss (Sonny) Antonio \n FN 15-14 Keili Pam / HT Daniel \n EK 15-15 Uniss (Sonny) Daniel / HT Stephen \n FN 16-15 JT Jacob (Zuko) / HT Quack \n FN 17-15 Quack Webster / B Quack/HT Kevin" }, 
+            g2: { name: "Air Nomads vs Water Tribe", t1: "Air Nomads", t2: "Water Tribe", raw: "Start,0,0,Commenced \n AN 1-0 Zuma (Air) Mitchell / B Bao Owen M Shane Simeon (Quartz) / HT Tony Simeon (Quartz) / CT Shane Jae Dylan \n AN 2-0 Zuma (Air) Duke / B Shane Ben (Chain) Simeon (Quartz) / HT Zuma (Air) Zuma (Air) Tony Tony Dylan / CT Dylan \n AN 3-0 Jae Victor / B Alvin / HT Simeon (Quartz) Simeon (Quartz) Anderson \n WT 3-1 Owen M Tony \n WT 3-2 Anderson Tony \n AN 4-2 Mitchell Zuma (Air) / HT Dylan Dylan \n WT 4-3 Dylan Shane \n AN 5-3 Anthony G Jae / CT Mitchell \n AN 6-3 Ben (Chain) Victor / B Shane / HT Ben (Chain) Dylan Tony Tony Jae \n WT 6-4 Alvin Owen M / HT Shane Dylan Owen M \n WT 6-5 Dylan Jimmy / B Shane Dylan Simeon (Quartz) Dylan / HT Simeon (Quartz) Dylan Tony \n AN 7-5 Andrew H Jae / HT Leon Jae \n WT 7-6 Owen M Tony / B Jae / CT Bao \n AN 8-6 Bao Duke \n WT 8-7 Delaney Dylan /B Dylan Tony/ HT Tony Dylan / CT Heidy \n AN 9-7 Leon Amber / B Anthony G / HT Zuma (Air) Jae \n  WT 9-8 Delaney Dylan \n AN 10-8 Mitchell Anthony G / B Duke \n WT 10-9 Delaney Shane \n AN 11-9 Jae Zuma (Air) / B Dylan / HT Owen M Heidy Dylan \n WT 11-10 Shane Alvin / B Tony Simeon (Quartz) Duke / HT Shane Bao / CT Shane Owen M Amber \n AN 12-10 Mitchell Jae \n WT 12-11 Shane Dylan / B Amber / HT Andrew H \n AN 13-11 Mitchell Ben (Chain) / HT Delaney Delaney \n WT 13-12 Tony Alvin / B Mitchell \n AN 14-12 Zuma (Air) Anthony G \n WT 14-13 Shane Dylan \n AN 15-13 Jae Leon / B Leon " }
+        },
+        w3: { 
+            g1: { name: "Air Nomads vs Earth Kingdom", t1: "Air Nomads", t2: "Earth Kingdom", raw: "Start,0,0,Commenced \n AN 1-0 Mitchell Victor / B Ben (Chain) / HT Owen Z \n EK 1-1 Uniss (Sonny) Antonio \n AN 2-1 Anthony G Victor / B Uniss (Sonny) Ben (Chain) / CT Eok Cheryl / HT Alanis Eok \n EK 2-2 Antonio Andy (Ender) / HT Jae Jordan (Sugarloaf) \n AN 3-2 Mitchell Anthony G \n EK 3-3 Antonio Andy (Ender) \n AN 4-3 Mindy (Air) Victor \n EK 4-4 Carmen Maddie (Earth) / HT Daniel Mindy (Air) / CT Carmen / B Daniel \n AN 5-4 Jae Victor \n EK 5-5 Alanis Andy (Ender) \n AN 6-5 Jae Mindy (Air) / HT Carmen Ben (Chain) / CT Jordan (Sugarloaf) \n AN 7-5 Maarten Anthony G / B Anthony G \n EK 7-6 Andy (Ender) Carmen \n AN 8-6 Anthony G Cheryl \n EK 8-7 Uniss (Sonny) Andy (Ender) \n EK 8-8 Andy (Ender) Owen Z / HT Victor \n AN 9-8 Mitchell Duke / B Ben (Chain) / CT Briana (Air) \n EK 9-9 Andy (Ender) Daniel / B Owen Z \n EK 9-10 Alanis Daniel / HT Duke \n AN 10-10 Jae Ben (Chain) / HT Andy (Ender) \n EK 10-11 Daniel Andy (Ender) / B Nathaniel \n AN 11-11 Jae Leon \n EK 11-12 Carmen Andy (Ender) \n AN 12-12 Jae Abe / HT Jackson (Earth) \n AN 13-12 Mitchell Anthony G / HT Jackson (Earth)\n EK 13-13 Jordan (Sugarloaf) Carmen \n EK 13-14 Andy (Ender) Owen Z / B Andy (Ender) / CT Owen Z \n AN 14-14 Ben (Chain) Victor / B Carmen / HT Jackson (Earth) Uniss (Sonny) Victor \n EK 14-15 Andy (Ender) Owen Z \n AN 15-15 Jae Victor \n EK 15-16 Andy (Ender) Owen Z \n EK 15-17 Alanis Antonio / B Antonio Antonio Andy (Ender) / HT Jackson (Earth)" },
+            g2: { name: "Water Tribe vs Fire Nation", t1: "Water Tribe", t2: "Fire Nation", raw: "Start,0,0,Commenced \n FN 0-1 Ryan Cory / HT Quake Matt / CT Owen M Ryan \n WT 1-1 Heidy Anna \n FN 1-2 Cory Webster \n WT 2-2 Dylan Matt / B Tony / HT Quake Anna / CT Tony \n FN 2-3 Stephen Jacob (Zuko) / B Anderson \n FN 2-4 Grant Webster / HT Owen M Quack / CT Owen M \n WT 3-4 Shane Dylan / B Cory Jimmy / HT Shane Cory Delaney Emily \n FN 3-5 Keili Quack / B Dylan Grant Matt Link / HT Jacob (Zuko) Anderson Webster Dylan JT Anna Grant Matt \n FN 3-6 Emily Cory / CT Jimmy \n FN 3-7 Ben L Quack \n FN 3-8 Cory Quake \n WT 4-8 Tony Dylan \n FN 4-9 Cory Webster / B Quake / HT Cory Owen M \n FN 4-10 Keili Quack / HT Tony \n WT 5-10 Dylan Shane / HT Heidy Cory\n WT 6-10 Shane Dylan / B Shane / HT Quack \n WT 7-10 Anna Dylan / B Anna Dylan / HT Ryan Dylan Tony Grant \n FN 7-11 Jacob (Zuko) Stephen / B Stephen Stephen / HT Webster Matt JT Delaney \n WT 8-11 Dylan Alvin \n FN 8-12 Quack Jacob (Zuko) \n FN 8-13 Ryan Cory / B Cory / HT Dylan \n WT 9-13 Owen M Anna / B Dylan Jacob (Zuko) \n FN 9-14 Stephen Cory \n WN 10-14 Shane Dylan \n WN 11-14 Anna Shane / HT Emily \n FN 11-15 Ryan Cory" } },
+        w4: {
+            g1: { name: "Earth Kingdom vs Water Tribe", t1: "Earth Kingdom", t2: "Water Tribe", raw: "Start,0,0,Commenced \n WT 0-1 Owen M Dylan / B Shane / HT Joya Kevin / CT Heidy \n EK 1-1 Andy (Ender) Google \n WT 1-2 Delaney Dylan / B Anderson Kevin / HT Heidy Dylan Anderson Andy (Ender) Zuma / CT Jordan (Sugarloaf) \n EK 2-2 Antonio Daniel / HT Owen Z Briana (Earth) Shane Tony / B Shane Shane \n EK 3-2 Andy (Ender) Google / CT Dylan \n WT 3-3 Alvin Dylan / B Jordan (Sugarloaf) / HT Tony Simeon (Quartz) Jordan (Sugarloaf) Google / CT Google \n EK 4-3 Andy (Ender) Zuma (Earth) \n EK 5-3 Antonio Andy (Ender) / HT Owen M \n WT 5-4 Tony Jackson \n WT 5-5 Dylan Jackson / B Antonio Anderson Anderson / HT Antonio Dylan Joya / CT Google Owen Z \n WT 5-6 Shane Simeon (Quartz) / B Shane / HT Shane Daniel Zuma (Earth) Zuma (Earth) \n EK 6-6 Antonio Google / HT Google Dylan \n WT 7-6 Heidy Owen M \n EK 7-7 Andy (Ender) Jordan (Sugarloaf) / B Jordan (Sugarloaf) / HT Google Antonio Simeon (Quartz) \n EK 8-7 Briana (Earth) Kevin / B Dylan Heidy Antonio / HT Jackson Jackson Jackson Zuma (Earth) Andy (Ender)/ CT Jackson \n EK 9-7 Briana (Earth) Google \n WT 9-8 Jackson Andrew P / B Briana (Earth) / HT Daniel / CT Delaney \n EK 10-8 Antonio Owen Z / B Kevin Heidy Shane Dylan / HT Kevin Kevin Dylan \n EK 11-8 Zuma (Earth) Eok / B Andy (Ender) Jimmy / HT Kevin Jimmy / CT Simeon (Quartz) Simeon (Quartz) \n EK 12-8 Antonio Google / B Tony / HT Google Dylan / CT Heidy \n WT 12-9 Shane Dylan \n EK 13-9 Andy (Ender) Briana (Earth) / HT Google / CT Google \n EK 14-9 Owen Z Google / B Anderson / HT Tony / CT Jimmy \n WT 14-10 Shane Dylan / CT Nathaniel \n WT 14-11 Owen M Shane \n WT 14-12 Shane Dylan \n EK 15-12 Briana (Earth) Zuma (Earth) " }, 
+            g2: { name: "Fire Nation vs Air Nomads", t1: "Fire Nation", t2: "Air Nomads", raw: "Start,0,0,Commenced \n FN 1-0 Stephen Cory / B Ryan Duke / HT Jae Ryan \n AN 1-1 Mindy (Air) Abe / HT Quake Emily (Air) \n FN 2-1 Webster Cory \n AN 2-2 Abe Jae \n FN 3-2 Grant Cory / HT Cory Andrew P \n AN 3-3 Mindy (Air) Victor / HT Ryan / CT Abe \n FN 4-3 Cory Quake \n AN 4-4 Jae Victor \n FN 5-4 Stephen Quake \n AN 5-5 Duke Abe / HT Webster Victor \n AN 5-6 Emily (Air) Claw / CT Stephen \n AN 5-7 Andrew H Victor / B Victor Grant Ben (Chain) / HT Thom (Fire) Jae Pam Jae Mindy (Air) JT Ben (Chain) Ben L / CT Andrew H Keili \n FN 6-7 Cory Jacob (Zuko) \n FN 7-7 Grant Cory / HT Mindy (Air) JT Victor \n AN 7-8 Ben (Chain) Mitchell / B Ryan Ben (Chain) / HT Leon Quake Duke Thom (Fire) Pam / CT Natalie (Air) \n AN 7-9 Mitchell Claw \n AN 7-10 Natalie (Air) Duke \n FN 8-10 Keili Pam \n AN 8-11 Jae Ben (Chain) \n FN 9-11 Thom (Fire) Cory \n AN 9-12 Jae Claw \n FN 10-12 Cory Grant \n AN 10-13 Natalie (Air) Jae \n FN 11-13 Pam Jacob (Zuko) / B Maarten Stephen / HT Cory Mindy (Air) \n AN 11-14 Jae Natalie (Air) / B Claw / HT Quake Quake Claw / CT Leon \n FN 12-14 Stephen Cory / HT Jacob (Zuko) Mindy (Air) \n FN 13-14 Grant Cory / B Jae / HT Keili / CT Karen \n FN 14-14 Stephen Jacob (Zuko) / HT Leon \n FN 15-14 Quake Cory / B Ryan / HT Maarten / CT Emily (Air) \n FN 16-14 Ben L Thom (Fire) " } },
+        w5: { 
+            g1: { name: "Water Tribe vs Air Nomads", t1: "Water Tribe", t2: "Air Nomads", raw: "Start,0,0,Commenced \n AN 0-1 Jae Amber / B Shane Victor Dylan / HT Ben (Chain) Jae Simeon (Quartz) Shane \n WT 1-1 Simeon (Quartz) Owen M \n AN 1-2 Jae Victor \n WT 2-2 Owen M Andrew P / CT Andrew P / B Duke \n WT 3-2 Dylan Simeon (Quartz) / CT Victor \n WT 4-2 Andrew P Tony / HT Abe \n WT 5-2 Anderson Owen M / HT Anthony G \n WT 6-2 Jimmy Simeon (Quartz) / B Shane / HT Cheryl \n AN 6-3 Anthony G Victor / B Delaney Anthony G / HT Delaney \n WT 7-3 Owen M Matt \n AN 7-4 Bao Anthony G \n AN 7-5 Abe Jae / B Jae Victor / HT Abe Abe / CT Jimmy \n WT 8-5 Owen M Dylan \n WT 9-5 Simeon (Quartz) Shane / B Tony Shane / HT Abe Duke \n AN 9-6 Briana (Air) Anthony G  \n WT 10-6 Dylan Tony / B Jacob / HT Tony Duke \n AN 10-7 Bao Victor / B Jimmy / HT Jackson / CT Anthony G \n AN 10-8 Amber Leon / B Abe / HT Matt Ben (Chain) Owen M Simeon (Quartz) \n WT 11-8 Jackson Anderson / B Anderson \n AN 11-9 Cheryl Abe \n WT 12-9 Heidy Dylan / B Victor Simeon (Quartz) / HT Victor Tony Victor Heidy \n AN 12-10 Ben (Chain) Duke / B Dylan Jackson / HT Duke / CT Dylan Matt \n WT 13-10 Shane Tony \n WT 14-10 Shane Dylan / B Jae Shane / HT Owen M Abe Simeon (Quartz) Victor Ben (Chain) Dylan Jae Dylan Briana (Air) / CT Cheryl Jae \n WT 15-10 Taka Tony / HT Victor "}, 
+            g2: { name: "Fire Nation vs Earth Kingdom", t1: "Fire Nation", t2: "Earth Kingdom", raw: "Start,0,0,Commenced \n EK 0-1 Andy (Ender) Kevin / B Google Google / HT Pam / CT Ryan Uniss (Sonny) \n FN 1-1 Grant Pam / B Antonio / HT Pam Google \n FN 2-1 Cory Quack / B Quack / HT Nathaniel \n FN 3-1 Ben L Cory / B Antonio Cory Webster / HT Antonio Cory Kevin Kevin \n EK 3-2 Andy (Ender) Google \n FN 4-2 Grant Cory \n EK 4-3 Emily (Earth) Antonio \n FN 5-3 Quake Quack \n EK 5-4 Uniss (Sonny) Daniel / HT Owen Z Keili \n FN 6-4 Quack Cory \n EK 6-5 Andy (Ender) Owen Z \n FN 7-5 Cory Jacob (Zuko) \n FN 8-5 Stephen Quack / B Quack / HT Quack Owen Z / CT Emily (Earth) \n EK 8-6 Alanis Google / HT Google Ryan Google / CT Daniel Webster \n FN 9-6 Pam Quake / B Winston / HT Quake Derek Quake \n FN 10-6 Ryan Cory / B Quack Quack / HT Cory Owen Z Jordan (Sugarloaf) Jordan (Sugarloaf) \n FN 11-6 Webster Jacob (Zuko) / B Uniss (Sonny) Stephen / HT Quake Uniss (Sonny) / CT Pam Uniss (Sonny) \n EK 11-7 Alanis Andy (Ender) / B Keili / HT Ryan Daniel \n FN 12-7 JT Grant / B Kevin / HT Quake Daniel \n FN 13-7 Cory Ryan / HT Google \n EK 13-8 Rico Kevin \n FN 14-8 Stephen Cory \n EK 14-9 Alanis Andy (Ender) \n FN 15-9 Stephen Quack / B Google / HT JT Uniss (Sonny)" } },
+        w6: { g1: { name: "Water Tribe vs Fire Nation", t1: "Water Tribe", t2: "Fire Nation", raw: "Start,0,0,Commenced" }, g2: { name: "Air Nomads vs Earth Kingdom", t1: "Air Nomads", t2: "Earth Kingdom", raw: "Start,0,0,Commenced" } },
+        w7: { g1: { name: "Semifinals Match 1", t1: "Seed 1", t2: "Seed 4", raw: "Start,0,0,Semifinal A commenced" }, g2: { name: "Semifinals Match 2", t1: "Seed 2", t2: "Seed 3", raw: "Start,0,0,Semifinal B commenced" } },
+        w8: { g1: { name: "Championship Final", t1: "Finalist A", t2: "Finalist B", raw: "Start,0,0,Gold medal final match" }, g2: { name: "Consolation Game", t1: "Consolation A", t2: "Consolation B", raw: "Start,0,0,Bronze medal consolation" } }
+    };
+    // ================================================================
+    // PARTICIPATION — MANUALLY EDIT THIS SECTION EACH WEEK
+    // Add every player who actually played each game.
+    // A player can be listed even if they recorded zero stats.
+    // Leave a game as [] until you enter its participants.
+    // Games Played in Individual Season Stats is calculated from these lists.
+    // ================================================================
+    var participation = {
+        w1: {
+            g1: ["Ben L", "Cory", "Grant", "Jacob (Zuko)", "JT", "Nick", "Quack", "Quake", "Ryan", "Stephen", "Emily", "Keili", "Mindy (Fire)", "Pam", "Webster", "Abe", "Andrew H", "Anthony G", "Ben (Chain)", "Duke", "Jae", "Leon", "Mitchell", "Victor", "Amber", "Bao", "Emily (Air)" , "Kim"], // Fire Nation vs Air Nomads
+            g2: ["Andy (Ender)", "Antonio", "Daniel", "Derek", "Eok", "Google", "Jordan (Sugarloaf)", "Nathaniel", "Winston", "Alanis", "Ann", "Uniss (Sonny)", "Alvin", "Anderson", "Andrew P", "Dylan", "Jimmy", "Matt", "Owen M", "Shane", "Simeon (Quartz)", "Tony", "Delaney", "Heidy", "Natalie"]  // Earth Kingdom vs Water Tribe
+        },
+        w2: {
+            g1: ["Ben L", "Cory", "Jacob (Zuko)", "JT", "Quack", "Quake", "Ryan", "Stephen", "Keili", "Mindy (Fire)", "Pam", "Webster", "Andy (Ender)", "Antonio", "Daniel", "Derek", "Eok", "Google", "Jordan (Sugarloaf)", "Kevin", "Nathaniel", "Owen Z", "Winston", "Alanis", "Ann", "Carmen", "Uniss (Sonny)"], // Fire Nation vs Earth Kingdom
+            g2: ["Alvin", "Anderson", "Dylan", "Jimmy", "Owen M", "Shane", "Simeon (Quartz)", "Tony", "Delaney", "Heidy", "Andrew H", "Anthony G", "Ben (Chain)", "Duke", "Jae", "Leon", "Mitchell", "Victor", "Amber", "Bao", "Zuma (Air)"]  // Air Nomads vs Water Tribe
+        },
+        w3: {
+            g1: ["Abe", "Andrew H", "Anthony G", "Ben (Chain)", "Duke", "Jae", "Leon", "Maarten", "Mitchell", "Victor", "Cheryl", "Mindy (Air)", "Maddie (Air)" ,"Maddie (Earth)", "Andy (Ender)", "Antonio", "Daniel", "Derek", "Eok", "Jordan (Sugarloaf)", "Nathaniel", "Owen Z", "Alanis", "Ann", "Carmen", "Uniss (Sonny)", "Briana (Air)", "Jackson (Earth)"], // Air Nomads vs Earth Kingdom
+            g2: ["Ben L", "Cory", "Grant", "Jacob (Zuko)", "JT", "Quack", "Quake", "Ryan", "Stephen", "Emily", "Keili", "Pam", "Webster", "Alvin", "Anderson", "Dylan", "Jimmy", "Matt", "Owen M", "Shane", "Tony", "Anna", "Delaney", "Heidy"]  // Water Tribe vs Fire Nation
+        },
+        w4: {
+            g1: ["Alvin", "Anderson", "Andrew P", "Dylan", "Jimmy", "Owen M", "Shane", "Simeon (Quartz)", "Tony", "Jackson", "Delaney", "Heidy", "Joya","Andy (Ender)", "Antonio", "Daniel", "Derek", "Eok", "Google", "Jordan (Sugarloaf)", "Kevin", "Nathaniel", "Owen Z", "Briana (Earth)", "Zuma (Earth)"], // Earth Kingdom vs Water Tribe
+            g2: ["Ben L", "Cory", "Grant", "Jacob (Zuko)", "JT", "Quake", "Ryan", "Stephen", "Thom (Fire)", "Keili", "Pam", "Webster", "Abe", "Andrew H", "Ben (Chain)", "Duke", "Jacob", "Jae", "Leon", "Maarten", "Mitchell", "Victor", "Claw",  "Cheryl", "Emily (Air)", "Mindy (Air)", "Karen", "Natalie (Air)"]  // Fire Nation vs Air Nomads
+        },
+        w5: {
+            g1: ["Anderson", "Andrew P", "Dylan", "Jimmy", "Matt", "Owen M", "Shane", "Simeon (Quartz)", "Tony", "Jackson", "Taka",  "Delaney", "Heidy", "Natalie", "Abe", "Andrew H", "Anthony G", "Ben (Chain)", "Duke", "Jacob", "Jae", "Leon", "Maarten", "Victor", "Thom", "Amber", "Bao", "Cheryl", "Briana (Air)"], // Water Tribe vs Air Nomads
+            g2: ["Ben L", "Cory", "Grant", "Jacob (Zuko)", "JT", "Quack", "Quake", "Ryan", "Stephen", "Keili", "Pam", "Webster", "Grace (Fire)", "Andy (Ender)", "Antonio", "Daniel", "Derek", "Google", "Jordan (Sugarloaf)", "Kevin", "Nathaniel", "Owen Z", "Winston", "Rico", "Alanis", "Uniss (Sonny)", "Emily (Earth)"]  // Fire Nation vs Earth Kingdom
+        },
+        w6: {
+            g1: [], // Water Tribe vs Fire Nation
+            g2: []  // Air Nomads vs Earth Kingdom
+        },
+        w7: {
+            g1: [], // Semifinals Match 1
+            g2: []  // Semifinals Match 2
+        },
+        w8: {
+            g1: [], // Championship Final
+            g2: []  // Consolation Game
+        }
+    };
+    // ================================================================
+    // UNASSIGNED EVENTS — MANUALLY EDIT THIS SECTION
+    // Use these when you know a player had a Block/Turnover in a game,
+    // but you do NOT know which specific point it happened on.
+    // These count toward game, weekly, and season totals, but are NOT
+    // attached to any point or shown in a point hover tooltip.
+    // Example: Block: ["Player A"], HTurn: ["Player B"], CTurn: ["Player C"]. Fouls are recorded on point logs with / F Player.
+    // ================================================================
+    var unassignedEvents = {
+        w1: { g1: {Block:[], HTurn:[], CTurn:[]}, g2: {Block:["Antonio"], HTurn:[], CTurn:[]} },
+        w2: { g1: {Block:["Mindy (Fire)"], HTurn:[], CTurn:[]}, g2: {Block:["Anthony G", "Ben (Chain)"], HTurn:["Andrew H", "Ben (Chain)", "Duke", "Duke", "Amber"], CTurn:[]} },
+        w3: { g1: {Block:[], HTurn:[], CTurn:[]}, g2: {Block:[], HTurn:[], CTurn:[]} },
+        w4: { g1: {Block:[], HTurn:[], CTurn:[]}, g2: {Block:[], HTurn:[], CTurn:[]} },
+        w5: { g1: {Block:[], HTurn:[], CTurn:[]}, g2: {Block:["Andy (Ender)"], HTurn:[], CTurn:[]} },
+        w6: { g1: {Block:[], HTurn:[], CTurn:[]}, g2: {Block:[], HTurn:[], CTurn:[]} },
+        w7: { g1: {Block:[], HTurn:[], CTurn:[]}, g2: {Block:[], HTurn:[], CTurn:[]} },
+        w8: { g1: {Block:[], HTurn:[], CTurn:[]}, g2: {Block:[], HTurn:[], CTurn:[]} }
+    };
+    function getUnassignedEvents(wNum,gKey){
+        var week = unassignedEvents["w" + wNum];
+        var game = week && week[gKey] ? week[gKey] : {};
+        return {
+            Block: Array.isArray(game.Block) ? game.Block : [],
+            HTurn: Array.isArray(game.HTurn) ? game.HTurn : [],
+            CTurn: Array.isArray(game.CTurn) ? game.CTurn : []
+        };
+    }
+    var participationTargetGame = "g1";
+    function getGameParticipants(wNum,gKey){
+        var week = participation["w" + wNum];
+        return week && Array.isArray(week[gKey]) ? week[gKey] : [];
+    }
+    function openParticipationModal(gKey){
+        alert("Participation is now maintained directly in the PARTICIPATION section of the HTML code. Add each player who played to the appropriate week/game array.");
+        return false;
+    }
+    function closeParticipationModal(){}
+    function saveParticipation(){}
+    // ================================================================
+    // HOVER CAPTIONS — MANUALLY EDIT THIS SECTION WITH LEAGUE DATA
+    // Add one caption per scored point, in the same order as the point
+    // log. Leave an entry as "" when you do not want a caption.
+    // Example: g1: ["Opening point", "Great defensive block", ""]
+    // Captions appear in that point's chart hover.
+    // ================================================================
+    var hoverCaptions = {
+        w1: { g1: ["","Quake to Cory deep to begin the season","","","","","","No turns!","","","","Pick, TO for Air at endzone","","","","No turns!","JT went UP for a great catch!","","","","","Jacob (Zuko) hammer assist!",], 
+            g2: ["","","","","","","","","","","","","","Layout score for Dylan!","","Hammer throw!","Hand block by Shane!","",] },
+        w2: { g1: ["","","","","","","","","","","","","", "Owen layout catch!","","","Nathaniel with a great lob to Owen!","","","","Kevin sky over a Fire Nation opponent!","","","","","Daniel two layout catches!","", "","", "Keili with a clutch birthday score!!!","", "JT with a tough acrobatic catch!", "Quack with a clutch handblock and break score to seal the game!"],
+            g2: ["","","","","","","","","","","","","","","","","","","","","","","","","","Alvin with a deep huck to Tony with assistance from Mitchell's tip/block attempt!","","","","","","","","","","","","",""] },
+        w3: { g1: ["","","","","","","", "", "Eok with a great sliding catch!","","","","","","","","","","","Owen with a successful deep shot to Carmen","","","","","","", "", "Andy with a clutch handblock and bookend score", "", "", "", "", "Antonio with a layout block and Alanis with the game winnning catch!"], 
+            g2: ["","","","","","","","","","","Grant with good hands to save possession! Ben L with his first of many career goals!", "", "", "", "", "Dylan and Shane showcasing their league-leading duo chemistry with another deep huck connection!", "Shane with a bookend!", "", "Stephen with two blocks and an assist on a crucial point to stop Water Tribe's run!", "", "", "", "Jacob (Link/Zuko) with a crucial block in the end-zone to prevent a Water Tribe score!"] },
+        w4: { g1: ["","Owen Z deep to Andy (Ender)!","","","","Google layout!","","","","","","","","","","Layout block by Dylan!","","Layout block by Shane!", "","","","","","Owen Z sky!","","","","Briana with the game winning catch!"], 
+            g2: ["","","","","","","","","","","","","","Jacob dive the possession to an immediate huck!","","","","","","Jae with the nice sprint!","","","","Nat with a nice huck to a score!","","Jae with the layout score!","","","","", "Ben L with the game winning catch!"] },
+        w5: { g1: [], g2: [] },
+        w6: { g1: [], g2: [] },
+        w7: { g1: [], g2: [] },
+        w8: { g1: [], g2: [] }
+    };
+
+    var activeWeek = 5; var targetModalGame = "g1"; var CODE_PASS = "fall2026";
+    var tableSortState = { g1: { index: 0, dir: "asc" }, g2: { index: 0, dir: "asc" } };
+    function openAdminModal(gk) {
+        var game = leagueData["w" + activeWeek] && leagueData["w" + activeWeek][gk];
+        if (!game) { alert("This game is not available for the selected week."); return false; }
+        var code = window.prompt("Enter Admin Passcode:");
+        if (code === CODE_PASS) {
+            targetModalGame = gk;
+            document.getElementById("dataInput").value = game.raw || "";
+            document.getElementById("adminModal").style.display = "flex";
+            setTimeout(function(){ document.getElementById("dataInput").focus(); }, 0);
+            return false;
+        }
+        if (code !== null) window.alert("Incorrect passcode.");
+        return false;
+    }
+    function closeAdminModal() { document.getElementById("adminModal").style.display = "none"; }
+    function setupChartZoom(gKey, svg, baseW) {
+        var slider = document.getElementById(gKey + "-zoom");
+        var value = document.getElementById(gKey + "-zoom-value");
+        if (!slider || !svg) return;
+        var inner = svg.parentElement;
+        slider.oninput = function() {
+            var scale = Number(slider.value) / 100;
+            var width = Math.round(baseW * scale);
+            svg.setAttribute("width", width);
+            svg.style.width = width + "px";
+            if (inner) { inner.style.width = width + "px"; inner.style.minWidth = width + "px"; }
+            if (value) value.textContent = slider.value + "%";
+        };
+        slider.dispatchEvent(new Event("input"));
+    }
+
+    function resetChartZoom(gKey) {
+        var slider = document.getElementById(gKey + "-zoom");
+        if (slider) { slider.value = 100; slider.dispatchEvent(new Event("input")); }
+    }
+
+    function saveAndPlot() {
+        var game = leagueData["w" + activeWeek] && leagueData["w" + activeWeek][targetModalGame];
+        if (!game) { closeAdminModal(); return; }
+        game.raw = document.getElementById("dataInput").value;
+        closeAdminModal();
+        buildDashboard();
+    }
+    document.addEventListener("keydown", function(e) { if (e.key === "Escape") closeAdminModal(); });
+    document.getElementById("adminModal").addEventListener("click", function(e) { if (e.target === this) closeAdminModal(); });
+    function switchTab(tab) { var allData = document.getElementById("allDataView"), season = document.getElementById("seasonView"), week = document.getElementById("weekView"), btns = document.querySelectorAll(".tab-btn"); allData.style.display = tab === "allData" ? "block" : "none"; season.style.display = tab === "season" ? "block" : "none"; week.style.display = tab === "week" ? "block" : "none"; for (var i = 0; i < btns.length; i++) btns[i].classList.toggle("active", tab === "allData" ? i === 0 : (tab === "season" ? i === 1 : i === activeWeek + 1)); } function switchWeek(num) { activeWeek = num; switchTab("week"); buildDashboard(); }
+    function lookupPlayer(n) { 
+        var k = Object.keys(rosters); 
+        for (var i = 0; i < k.length; i++) { 
+            var t = k[i]; 
+            if (rosters[t].Men.indexOf(n) !== -1) return { team: t, gender: "MMP", clean: n }; 
+            if (rosters[t].Women.indexOf(n) !== -1) return { team: t, gender: "FMP", clean: n }; 
+        } 
+        return null; 
+    }
+    function allRosterNames() {
+        var names = [];
+        Object.keys(rosters).forEach(function(team) {
+            (rosters[team].Men || []).concat(rosters[team].Women || []).forEach(function(n) {
+                if (names.indexOf(n) === -1) names.push(n);
+            });
+        });
+        return names.sort(function(a,b){ return b.length - a.length; });
+    }
+    function matchPlayerPrefix(text) {
+        var clean = (text || "").trim();
+        var names = allRosterNames();
+        for (var i = 0; i < names.length; i++) {
+            var n = names[i];
+            if (clean === n) return { name:n, rest:"" };
+            if (clean.indexOf(n + " ") === 0) return { name:n, rest:clean.slice(n.length).trim() };
+        }
+        return null;
+    }
+    function parseCompactPoint(play) {
+        var events = { Goal: [], Assist: [], Block: [], HTurn: [], CTurn: [], Foul: [] };
+        var m = String(play || "").trim().match(/^(.*?)\s*\/\s*(.*)$/);
+        var scoring = m ? m[1].trim() : String(play || "").trim();
+        var defense = m ? m[2].trim() : "";
+        var g = matchPlayerPrefix(scoring);
+        if (g) {
+            events.Goal.push(g.name);
+            if (g.rest) {
+                var a = matchPlayerPrefix(g.rest);
+                if (a) events.Assist.push(a.name);
+            }
+        }
+        // Defensive events are separated by "/". Parse each segment independently
+        // so a later event type is not swallowed by the preceding event's player list.
+        // Example: "HT Victor Nick / B Victor" records Victor + Nick as HT, then Victor as Block.
+        var segments = defense ? defense.split(/\s*\/\s*/) : [];
+        for (var si = 0; si < segments.length; si++) {
+            var seg = segments[si].trim();
+            if (!seg) continue;
+            var em = seg.match(/^(B|HT|CT|F)\s+(.+)$/i);
+            if (!em) continue;
+            var type = em[1].toUpperCase() === "B" ? "Block" : (em[1].toUpperCase() === "HT" ? "HTurn" : (em[1].toUpperCase() === "CT" ? "CTurn" : "Foul"));
+            var d = em[2].trim();
+            // Keep parsing all consecutive roster names, including repeated names.
+            while (d) {
+                var player = matchPlayerPrefix(d);
+                if (!player) break;
+                events[type].push(player.name);
+                d = player.rest;
+            }
+        }
+        return events;
+    }
+    function parsePointLine(line) {
+        var compact = String(line || "").trim().match(/^([A-Za-z]{2})\s+(\d+)\s*-\s*(\d+)\s+(.+)$/);
+        if (compact) return { code: compact[1].toUpperCase(), a: parseInt(compact[2],10), b: parseInt(compact[3],10), play: compact[4].trim(), compact: true };
+        var parts = String(line || "").split(",");
+        if (parts.length >= 3) return { code: parts[0].trim(), a: parseInt(parts[1],10), b: parseInt(parts[2],10), play: parts.length >= 4 ? parts.slice(3).join(",").trim() : "", compact: false };
+        return null;
+    }
+    function parsePointEvents(play) {
+        var events = { Goal: [], Assist: [], Block: [], HTurn: [], CTurn: [], Foul: [] };
+        if (!play) return events;
+        // Compact league-data format supports both:
+        //   Goal Assist / defensive events
+        // and a simple Goal Assist line when there are no defensive events.
+        // The latter is needed for lines such as "FN 1-0 Mindy (Fire) Cory".
+        if (!/(Goal by|Assist by|Block by|HTurn by|CTurn by|Foul by|Handler turnover by|Cutter turnover by)/i.test(play)) return parseCompactPoint(play);
+
+        var re = /(Goal by|Assist by|Block by|HTurn by|CTurn by|Foul by|Handler turnover by|Cutter turnover by)\s*/gi;
+        var matches = [];
+        var m;
+        while ((m = re.exec(play)) !== null) {
+            var rawType = m[1].replace(/\s+by$/i, "");
+            var typeMap = { "Goal": "Goal", "Assist": "Assist", "Block": "Block", "HTurn": "HTurn", "CTurn": "CTurn", "Handler turnover": "HTurn", "Cutter turnover": "CTurn", "Foul": "Foul" };
+            matches.push({ type: typeMap[rawType] || rawType, start: m.index, end: re.lastIndex });
+        }
+        for (var i = 0; i < matches.length; i++) {
+            var cur = matches[i];
+            var nextStart = i + 1 < matches.length ? matches[i + 1].start : play.length;
+            var namesText = play.slice(cur.end, nextStart).trim();
+            if (!namesText) continue;
+            var names = namesText.split(",").map(function(n) { return n.trim().replace(/[.\/#!$%\^&\*;:{}=\-_`~]/g, ""); }).filter(function(n) { return n.length > 0; });
+            if (cur.type === "Goal" || cur.type === "Assist") {
+                if (events[cur.type].length === 0 && names.length > 0) events[cur.type].push(names[0]);
+            } else {
+                for (var j = 0; j < names.length; j++) if (lookupPlayer(names[j])) events[cur.type].push(names[j]);
+            }
+        }
+        return events;
+    }
+
+    function validateGoalAssistTeams(txt, match) {
+        var warnings = [];
+        if (!txt || !match) return warnings;
+        var lines = txt.split("\n");
+        var t1Code = teamCodeForName(match.t1);
+        var t2Code = teamCodeForName(match.t2);
+
+        for (var i = 0; i < lines.length; i++) {
+            var line = lines[i].trim();
+            if (!line) continue;
+            var parsed = parsePointLine(line);
+            if (!parsed) continue;
+            var pointTeamCode = parsed.code;
+            if (pointTeamCode !== t1Code && pointTeamCode !== t2Code) continue;
+
+            var scoringTeam = pointTeamCode === t1Code ? match.t1 : match.t2;
+            var events = parsePointEvents(parsed.play);
+            ["Goal", "Assist"].forEach(function(type) {
+                if (!events[type].length) return;
+                var player = events[type][0];
+                var info = lookupPlayer(player);
+                if (info && info.team !== scoringTeam) {
+                    warnings.push({
+                        line: i + 1,
+                        type: type,
+                        player: player,
+                        playerTeam: info.team,
+                        scoringTeam: scoringTeam
+                    });
+                }
+            });
+        }
+        return warnings;
+    }
+
+    function renderLogWarnings(gKey, warnings) {
+        var el = document.getElementById(gKey + "-warnings");
+        if (!el) return;
+        if (!warnings.length) {
+            el.innerHTML = "";
+            return;
+        }
+        var html = "<div class='log-warning'><strong>⚠ Goal/Assist team mismatch</strong><div style='margin-top:5px;'>";
+        for (var i = 0; i < warnings.length; i++) {
+            var w = warnings[i];
+            html += "<div>Line " + w.line + ": " + escapeHtml(w.type) + " by <strong>" + escapeHtml(w.player) + "</strong> (" + escapeHtml(w.playerTeam) + ") on a " + escapeHtml(w.scoringTeam) + " score.</div>";
+        }
+        html += "<div style='margin-top:5px;'>The stat is still recorded, but please check the log.</div></div>";
+        el.innerHTML = html;
+    }
+
+    function parseStats(txt, unassigned) {
+        var res = {}; var lines = txt ? txt.split("\n") : [];
+        var addStat = function(pName, stat) {
+            var meta = lookupPlayer(pName);
+            if (!meta) return;
+            if (!res[meta.clean]) res[meta.clean] = { name: meta.clean, gender: meta.gender, team: meta.team, g:0, a:0, b:0, ht:0, ct:0, f:0 };
+            res[meta.clean][stat]++;
+        };
+        for (var i = 0; i < lines.length; i++) {
+            var parsed = parsePointLine(lines[i]);
+            if (parsed && parsed.play) {
+                var events = parsePointEvents(parsed.play);
+
+                if (events.Goal.length) addStat(events.Goal[0], "g");
+                if (events.Assist.length) addStat(events.Assist[0], "a");
+                for (var b = 0; b < events.Block.length; b++) addStat(events.Block[b], "b");
+                for (var h = 0; h < events.HTurn.length; h++) addStat(events.HTurn[h], "ht");
+                for (var c = 0; c < events.CTurn.length; c++) addStat(events.CTurn[c], "ct");
+                for (var f = 0; f < events.Foul.length; f++) addStat(events.Foul[f], "f");
+            }
+        }
+        // Add Blocks/Turnovers whose exact point is unknown. These are intentionally
+        // excluded from point hover/running-total data because no point is assigned.
+        unassigned = unassigned || {};
+        (unassigned.Block || []).forEach(function(name){ addStat(name, "b"); });
+        (unassigned.HTurn || []).forEach(function(name){ addStat(name, "ht"); });
+        (unassigned.CTurn || []).forEach(function(name){ addStat(name, "ct"); });
+        return res;
+    }
+    function renderLeaderBlock(tid, statsObj, gen, metrics, labels, minBlock) {
+        var html = "";
+        for (var s = 0; s < metrics.length; s++) {
+            var sk = metrics[s]; html += "<div class='stat-section-title'>" + labels[sk] + "</div>";
+            var sorted = Object.keys(statsObj).map(function(k){return statsObj[k];}).filter(function(p){return p.gender===gen;}).sort(function(a,b){return b[sk]-a[sk];});
+            // For MMP weekly Block leaders, require at least 2 blocks.
+            var positive = sorted.filter(function(p){ return sk === "b" && minBlock ? p[sk] >= minBlock : p[sk] > 0; });
+            var cutoff = positive.length >= 5 ? positive[4][sk] : null;
+            var shown = cutoff === null ? positive : positive.filter(function(p){ return p[sk] >= cutoff; });
+            for (var i = 0; i < shown.length; i++) {
+                var p = shown[i];
+                var rank = 1;
+                for (var r = 0; r < positive.length; r++) {
+                    if (positive[r][sk] > p[sk]) rank++;
+                    else break;
+                }
+                var tName = p.team; var bg = textBgColors[tName] || "#ffffff"; var textCol = teamColors[tName] || "#4b5563";
+                html += "<div class='leader-row' style='background:" + bg + "; color:" + textCol + ";'><span>" + rank + ". " + p.name + "</span><strong>" + p[sk] + "</strong></div>";
+            }
+            // Keep five placeholder rows when fewer than five players have a positive stat.
+            for (var j = shown.length; j < 5; j++) {
+                html += "<div class='leader-row' style='background:#ffffff; color:#4b5563;'><span>-</span><strong>0</strong></div>";
+            }
+        }
+        document.getElementById(tid).innerHTML = html;
+    }
+    function duoKey(a, b) {
+        var names = [String(a || "").trim(), String(b || "").trim()].sort(function(x, y){ return x.localeCompare(y); });
+        return names[0] + "\u0000" + names[1];
+    }
+    function renderDuoRows(duoStats, minConnections) {
+        var arr = Object.keys(duoStats).map(function(k){ return duoStats[k]; })
+            .filter(function(d){ return d.connections >= minConnections; })
+            .sort(function(a,b){ return b.connections - a.connections || a.name.localeCompare(b.name); });
+        var cutoff = arr.length >= 5 ? arr[4].connections : null;
+        var shown = cutoff === null ? arr : arr.filter(function(d){ return d.connections >= cutoff; });
+        var html = "<div class='gender-grid'><div class='gender-panel' style='grid-column:1 / -1;'>";
+        if (!shown.length) {
+            html += "<div class='leader-row' style='background:#ffffff; color:#6b7280;'><span>No duo has connected " + minConnections + "+ times.</span><strong>0</strong></div>";
+        } else {
+            for (var i = 0; i < shown.length; i++) {
+                var d = shown[i], rank = 1;
+                for (var r = 0; r < arr.length; r++) { if (arr[r].connections > d.connections) rank++; else break; }
+                var p1 = d.players && d.players[0] ? d.players[0] : d.name.split(" + ")[0];
+                var p2 = d.players && d.players[1] ? d.players[1] : d.name.split(" + ")[1];
+                var m1 = lookupPlayer(p1), m2 = lookupPlayer(p2);
+                var sameTeam = m1 && m2 && m1.team === m2.team;
+                var c1 = m1 ? (teamColors[m1.team] || "#4b5563") : "#4b5563";
+                var c2 = m2 ? (teamColors[m2.team] || "#4b5563") : "#4b5563";
+                var duoBg = sameTeam ? (textBgColors[m1.team] || "#ffffff") : "#ffffff";
+                var duoText = sameTeam ? c1 : "#4b5563";
+                html += "<div class='leader-row' style='background:" + duoBg + "; color:" + duoText + ";'><span>" + rank + ". <span style='color:" + c1 + "; font-weight:700;'>" + escapeHtml(p1) + "</span> <span style='color:" + duoText + ";'>+</span> <span style='color:" + c2 + "; font-weight:700;'>" + escapeHtml(p2) + "</span></span><strong>" + d.connections + "</strong></div>";
+            }
+            for (var j = shown.length; j < 5; j++) html += "<div class='leader-row' style='background:#ffffff; color:#4b5563;'><span>-</span><strong>0</strong></div>";
+        }
+        html += "</div></div>";
+        return html;
+    }
+    function renderWeeklyDuos(duoStats) {
+        var el = document.getElementById("weeklyDuos");
+        if (!el) return;
+        el.innerHTML = renderDuoRows(duoStats, 2);
+    }
+    function renderSeasonDuos(duoStats) {
+        var el = document.getElementById("seasonDuos");
+        if (!el) return;
+        el.innerHTML = renderDuoRows(duoStats, 2);
+    }
+
+    function getMatchRosterStats(match, gameStats, wNum, gKey) {
+        var out = [];
+        [match.t1, match.t2].forEach(function(team) {
+            if (!rosters[team]) return;
+            ["Men","Women"].forEach(function(div) {
+                rosters[team][div].forEach(function(name) {
+                    var meta = lookupPlayer(name); if (!meta) return;
+                    var p = gameStats[name] || {g:0,a:0,b:0,ht:0,ct:0,f:0};
+                    var listed = getGameParticipants(wNum,gKey).indexOf(name) !== -1;
+                    var hasRecordedStat = (p.g||0) > 0 || (p.a||0) > 0 || (p.b||0) > 0 || (p.ht||0) > 0 || (p.ct||0) > 0 || (p.f||0) > 0;
+                    // Participation is still the normal way to include zero-stat players,
+                    // but anyone with a recorded stat is shown automatically. This prevents
+                    // unassigned Blocks/Turnovers/Fouls from disappearing from the weekly table.
+                    if (!listed && !hasRecordedStat) return;
+                    out.push({name:meta.clean, gender:meta.gender, team:meta.team, g:p.g||0, a:p.a||0, b:p.b||0, ht:p.ht||0, ct:p.ct||0, f:p.f||0});
+                });
+            });
+        });
+        return out;
+    }
+    function sortGameTable(gKey, colIndex) {
+        var st=tableSortState[gKey];
+        if(st.index===colIndex) st.dir=st.dir==="asc"?"desc":"asc"; else {st.index=colIndex; st.dir=(colIndex<2)?"asc":"desc";}
+        buildDashboard();
+    }
+    function sortPlayers(arr, gKey) {
+        var st=tableSortState[gKey], keys=["g","a","b","ht","ct"];
+        return arr.slice().sort(function(a,b){
+            var av,bv;
+            if(st.index===0){av=a.name;bv=b.name;return st.dir==="asc"?av.localeCompare(bv):bv.localeCompare(av);}
+            if(st.index===1){av=a.gender;bv=b.gender;return st.dir==="asc"?av.localeCompare(bv):bv.localeCompare(av);}
+            av=a[keys[st.index-2]];bv=b[keys[st.index-2]];
+            return av!==bv?(st.dir==="asc"?av-bv:bv-av):a.name.localeCompare(b.name);
+        });
+    }
+    function updateSortHeader(gKey){
+        var ths=document.getElementById(gKey+"-table").closest("table").querySelectorAll("thead th"), st=tableSortState[gKey];
+        for(var i=0;i<ths.length;i++){ths[i].classList.remove("sort-asc","sort-desc");if(i===st.index)ths[i].classList.add(st.dir==="asc"?"sort-asc":"sort-desc");}
+    }
+
+    var seasonRosterSortState = {};
+    function sortSeasonRoster(teamIndex, colIndex) {
+        var key = String(teamIndex);
+        if (!seasonRosterSortState[key]) seasonRosterSortState[key] = { index: 0, dir: "asc" };
+        var st = seasonRosterSortState[key];
+        if (st.index === colIndex) st.dir = st.dir === "asc" ? "desc" : "asc";
+        else { st.index = colIndex; st.dir = colIndex < 2 ? "asc" : "desc"; }
+        buildDashboard();
+    }
+    function sortSeasonRosterPlayers(arr, teamIndex) {
+        var key = String(teamIndex);
+        if (!seasonRosterSortState[key]) seasonRosterSortState[key] = { index: 0, dir: "asc" };
+        var st = seasonRosterSortState[key];
+        return arr.slice().sort(function(a,b){
+            var av, bv;
+            if (st.index === 0) { av = a.name; bv = b.name; return st.dir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av); }
+            if (st.index === 1) { av = a.gender; bv = b.gender; return st.dir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av); }
+            var keys = ["gp","g","a","b","ht","ct"];
+            av = a[keys[st.index - 2]]; bv = b[keys[st.index - 2]];
+            return av !== bv ? (st.dir === "asc" ? av - bv : bv - av) : a.name.localeCompare(b.name);
+        });
+    }
+    function updateSeasonRosterSortHeaders(teamIndex) {
+        var table = document.getElementById("season-roster-table-" + teamIndex);
+        if (!table) return;
+        var key = String(teamIndex);
+        if (!seasonRosterSortState[key]) seasonRosterSortState[key] = { index: 0, dir: "asc" };
+        var ths = table.querySelectorAll("thead th"), st = seasonRosterSortState[key];
+        for (var i=0; i<ths.length; i++) {
+            ths[i].classList.remove("sort-asc", "sort-desc");
+            if (i === st.index) ths[i].classList.add(st.dir === "asc" ? "sort-asc" : "sort-desc");
+        }
+    }
+
+    function renderAllData() {
+        var host = document.getElementById("allDataContent");
+        if (!host) return;
+        var html = "", weeks = Object.keys(leagueData).filter(function(k){ return /^w[1-7]$/.test(k); }).sort(function(a,b){ return parseInt(a.slice(1),10)-parseInt(b.slice(1),10); });
+        var labels = {1:"Week 1 (9/14)",2:"Week 2 (9/21)",3:"Week 3 (9/28)",4:"Week 4 (10/5)",5:"Week 5 (10/19)",6:"Week 6 - Game 1 (10/26)",7:"Week 6 - Game 2 (10/26)"};
+        var found = 0;
+        var duoCounts = {"duo-mm":{}, "duo-mf":{}, "duo-fm":{}, "duo-ff":{}};
+        var categoryTotals = {"duo-mm":0, "duo-mf":0, "duo-fm":0, "duo-ff":0};
+        weeks.forEach(function(wKey) {
+            var wn = parseInt(wKey.slice(1),10);
+            ["g1","g2"].forEach(function(gKey) {
+                var game = leagueData[wKey] && leagueData[wKey][gKey];
+                if (!game || !game.raw) return;
+                var rows = [], pointNo = 0;
+                game.raw.split("\n").forEach(function(line) {
+                    var parsed = parsePointLine(line);
+                    if (!parsed || !parsed.play) return;
+                    var ev = parsePointEvents(parsed.play);
+                    if (!ev.Goal || !ev.Goal.length) return;
+                    pointNo++;
+                    var scorer = ev.Goal[0], assist = ev.Assist && ev.Assist.length ? ev.Assist[0] : "";
+                    var scorerInfo = lookupPlayer(scorer), assistInfo = assist ? lookupPlayer(assist) : null;
+                    var cls = "duo-unknown", label = "Missing / unrecognized duo";
+                    if (scorerInfo && assistInfo) {
+                        if (scorerInfo.gender === "MMP" && assistInfo.gender === "MMP") { cls="duo-mm"; label="MMP → MMP"; }
+                        else if (scorerInfo.gender === "MMP" && assistInfo.gender === "FMP") { cls="duo-mf"; label="MMP scorer ← FMP assist"; }
+                        else if (scorerInfo.gender === "FMP" && assistInfo.gender === "MMP") { cls="duo-fm"; label="FMP scorer ← MMP assist"; }
+                        else if (scorerInfo.gender === "FMP" && assistInfo.gender === "FMP") { cls="duo-ff"; label="FMP → FMP"; }
+                        if (duoCounts[cls]) {
+                            categoryTotals[cls]++;
+                            var pairKey, pairLabel;
+                            if (cls === "duo-mm" || cls === "duo-ff") {
+                                var pairNames = [scorer, assist].sort(function(a,b){ return a.localeCompare(b); });
+                                pairKey = pairNames.join("|||" );
+                                pairLabel = pairNames[0] + " + " + pairNames[1];
+                            } else {
+                                pairKey = scorer + "|||" + assist;
+                                pairLabel = "Scorer: " + scorer + " · Assist: " + assist;
+                            }
+                            if (!duoCounts[cls][pairKey]) duoCounts[cls][pairKey] = {label:pairLabel, count:0};
+                            duoCounts[cls][pairKey].count++;
+                        }
+                    } else if (!assist) {
+                        label = scorerInfo ? "No assist recorded" : "Scorer / assist not recognized";
+                    } else if (!scorerInfo) {
+                        label = "Scorer not recognized";
+                    } else {
+                        label = "Assist not recognized";
+                    }
+                    var score = String(parsed.a) + "–" + String(parsed.b);
+                    rows.push({point:pointNo,score:score,scorer:scorer,assist:assist || "—",cls:cls,label:label});
+                });
+                if (!rows.length) return;
+                found += rows.length;
+                html += "<section class='all-data-game'><h3>" + escapeHtml(labels[wn] || ("Week " + wn)) + " · " + escapeHtml(game.name || (game.t1 + " vs " + game.t2)) + "</h3><div class='all-data-table-wrap'><table class='all-data-table'><thead><tr><th>Point</th><th>Score</th><th>Scoring player</th><th>Assist</th><th>Connection type</th></tr></thead><tbody>";
+                rows.forEach(function(r) {
+                    html += "<tr class='" + r.cls + "-row'><td>Point " + r.point + "</td><td>" + escapeHtml(r.score) + "</td><td>" + escapeHtml(r.scorer) + (lookupPlayer(r.scorer) ? " <small>(" + lookupPlayer(r.scorer).gender + ")</small>" : "") + "</td><td>" + escapeHtml(r.assist) + (r.assist !== "—" && lookupPlayer(r.assist) ? " <small>(" + lookupPlayer(r.assist).gender + ")</small>" : "") + "</td><td><span class='duo-type " + r.cls + "'>" + escapeHtml(r.label) + "</span></td></tr>";
+                });
+                html += "</tbody></table></div></section>";
+            });
+        });
+        var categories = [
+            {key:"duo-mm", title:"MMP ↔ MMP (role-independent)"},
+            {key:"duo-mf", title:"MMP scorer ← FMP assist"},
+            {key:"duo-fm", title:"FMP scorer ← MMP assist"},
+            {key:"duo-ff", title:"FMP ↔ FMP (role-independent)"}
+        ];
+        var denominator = 277;
+        var topHtml = "<section class='duo-top5-section'><h3>🏆 Top 5 Duos by Connection Type</h3><p class='all-data-intro'>Ranked by number of recorded connections across all games. For MMP–MMP and FMP–FMP, scorer and assist roles are interchangeable, so the same pair is counted together either way. Mixed-gender connections remain directional.</p><div class='duo-top5-grid'>";
+        categories.forEach(function(cat) {
+            var entries = Object.keys(duoCounts[cat.key]).map(function(k){return duoCounts[cat.key][k];}).sort(function(a,b){ return b.count-a.count || a.label.localeCompare(b.label); }).slice(0,5);
+            var categoryPct = (categoryTotals[cat.key] / denominator * 100).toFixed(1);
+            var categoryTotalText = categoryTotals[cat.key] + " points out of " + denominator + " (" + categoryPct + "%)";
+            topHtml += "<div class='duo-top5-card'><h3 class='duo-category-heading " + cat.key + "'><span>" + escapeHtml(cat.title) + "</span><span class='duo-category-total'>" + escapeHtml(categoryTotalText) + "</span></h3><table><thead><tr><th>#</th><th>Duo</th><th>Count</th></tr></thead><tbody>";
+            if (!entries.length) topHtml += "<tr><td colspan='3'>No recognized connections yet</td></tr>";
+            else entries.forEach(function(entry, i){ topHtml += "<tr><td>" + (i+1) + "</td><td>" + escapeHtml(entry.label) + "</td><td>" + entry.count + "</td></tr>"; });
+            topHtml += "</tbody></table></div>";
+        });
+        topHtml += "</div></section>";
+        host.innerHTML = (found ? "<p><strong>" + found + " scored points listed</strong></p>" : "<p>No scored points were found in the current game logs.</p>") + topHtml + html;
+    }
+
+    function buildDashboard() {
+        renderAllData();
+        var weekLabels = {1:"Week 1 (9/14)",2:"Week 2 (9/21)",3:"Week 3 (9/28)",4:"Week 4 (10/5)",5:"Week 5 (10/19)",6:"Week 6 - Game 1 (10/26)",7:"Week 6 - Game 2 (10/26)"};
+        document.getElementById("weekDisplayTitle").innerText = (weekLabels[activeWeek] || ("Week " + activeWeek)) + " Breakdown";
+        document.getElementById("weeklyLeadersTitle").innerText = "🏆 " + (weekLabels[activeWeek] || ("Week " + activeWeek)) + " Leaders (Top 5 Rankings)";
+        var weekStats = {}; var globalSeasonStats = {}; var weeklyDuoStats = {}; var seasonDuoStats = {}; var matchKeys = ["g1", "g2"];
+        Object.keys(leagueData).filter(function(k){return parseInt(k.slice(1),10)<=7;}).forEach(function(wKey) {
+            var wNum = parseInt(wKey.replace("w", ""));
+            matchKeys.forEach(function(gKey) {
+                var match = leagueData[wKey] && leagueData[wKey][gKey]; if (!match) return; var gameStats = parseStats(match.raw || "", getUnassignedEvents(wNum, gKey));
+                Object.keys(gameStats).forEach(function(pKey) {
+                    var p = gameStats[pKey];
+                    if (wNum === activeWeek) { if (!weekStats[pKey]) weekStats[pKey] = { name: p.name, gender: p.gender, team: p.team, g:0, a:0, b:0, f:0, ht:0, ct:0 }; weekStats[pKey].g += p.g; weekStats[pKey].a += p.a; weekStats[pKey].b += p.b; weekStats[pKey].f += p.f; weekStats[pKey].ht += p.ht; weekStats[pKey].ct += p.ct; }
+                    if (!globalSeasonStats[pKey]) globalSeasonStats[pKey] = { name: p.name, gender: p.gender, team: p.team, g:0, a:0, b:0, f:0, ht:0, ct:0 }; globalSeasonStats[pKey].g += p.g; globalSeasonStats[pKey].a += p.a; globalSeasonStats[pKey].b += p.b; globalSeasonStats[pKey].f += p.f; globalSeasonStats[pKey].ht += p.ht; globalSeasonStats[pKey].ct += p.ct;
+                });
+                // A duo connection is one Goal + Assist pair on the same point.
+                // The pair is unordered, so Ryan/Pam counts the same whether Ryan
+                // scored and Pam assisted or Pam scored and Ryan assisted.
+                var duoLines = (match.raw || "").split("\n");
+                duoLines.forEach(function(line){
+                    var parsedDuo = parsePointLine(line);
+                    if (!parsedDuo || !parsedDuo.play) return;
+                    var evDuo = parsePointEvents(parsedDuo.play);
+                    if (evDuo.Goal.length && evDuo.Assist.length) {
+                        var goalName = evDuo.Goal[0], assistName = evDuo.Assist[0];
+                        // Duo connections only count when both players are on the same team.
+                        var goalMeta = lookupPlayer(goalName), assistMeta = lookupPlayer(assistName);
+                        if (!goalMeta || !assistMeta || goalMeta.team !== assistMeta.team) return;
+                        var dk = duoKey(goalName, assistName);
+                        if (!seasonDuoStats[dk]) seasonDuoStats[dk] = { name: [goalName, assistName].sort(function(x,y){return x.localeCompare(y);}).join(" + "), players: [goalName, assistName].sort(function(x,y){return x.localeCompare(y);}), connections: 0 };
+                        seasonDuoStats[dk].connections++;
+                        if (wNum === activeWeek) {
+                            if (!weeklyDuoStats[dk]) weeklyDuoStats[dk] = { name: seasonDuoStats[dk].name, players: seasonDuoStats[dk].players.slice(), connections: 0 };
+                            weeklyDuoStats[dk].connections++;
+                        }
+                    }
+                });
+                if (wNum === activeWeek) {
+                    document.getElementById(gKey + "-title").innerText = match.name; var c1 = teamColors[match.t1] || "#333", c2 = teamColors[match.t2] || "#666";
+                    document.getElementById(gKey + "-legend").innerHTML = "<div class='legend-item'><div style='width:12px;height:12px;background:" + c1 + ";border-radius:2px;'></div>" + match.t1 + "</div><div class='legend-item'><div style='width:12px;height:12px;background:" + c2 + ";border-radius:2px;'></div>" + match.t2 + "</div>";
+                    var participantList = getGameParticipants(activeWeek, gKey);
+                    var totalPossible = (rosters[match.t1].Men.length + rosters[match.t1].Women.length + rosters[match.t2].Men.length + rosters[match.t2].Women.length);
+                    var partStatus = document.getElementById(gKey + "-participation-status");
+                    if (partStatus) { partStatus.innerText = participantList.length ? ("Players entered: " + participantList.length + " of " + totalPossible) : "Participation not entered yet — edit the PARTICIPATION section in the HTML."; partStatus.style.color = participantList.length ? "#6b7280" : "#b45309"; }
+                    renderLogWarnings(gKey, validateGoalAssistTeams(match.raw || "", match));
+                    var tHtml = "";
+                    var rosterStats = getMatchRosterStats(match, gameStats, activeWeek, gKey);
+                    [match.t1, match.t2].forEach(function(team) {
+                        tHtml += "<tr><td colspan='8' class='table-group-header' style='background:" + (teamColors[team]||'#555') + " !important;'>" + team + "</td></tr>";
+                        ["MMP","FMP"].forEach(function(gen) {
+                            var arr = rosterStats.filter(function(p){return p.team===team && p.gender===gen;});
+                            arr = sortPlayers(arr, gKey);
+                            tHtml += "<tr><td colspan='8' class='table-subgroup-header'>" + gen + "</td></tr>";
+                            arr.forEach(function(p){ tHtml += "<tr><td style='padding-left:20px;'><strong>"+escapeHtml(p.name)+"</strong></td><td>"+p.gender+"</td><td>"+p.g+"</td><td>"+p.a+"</td><td>"+p.b+"</td><td>"+p.ht+"</td><td>"+p.ct+"</td></tr>"; });
+
+                            // Put this team's total immediately after its FMP players,
+                            // before the next team's stats begin.
+                            if (gen === "FMP") {
+                                var totals = Object.keys(gameStats).reduce(function(acc, pKey){
+                                    var p = gameStats[pKey];
+                                    if (p.team === team) { acc.a += p.a; acc.b += p.b; acc.ht += p.ht; acc.ct += p.ct; acc.f += p.f; }
+                                    return acc;
+                                }, {g:0,a:0,b:0,ht:0,ct:0,f:0});
+                                // Team Score comes from the game score, not from recognized
+                                // player Goal events. This keeps team totals correct even if
+                                // a log contains a scorer who is not currently on the roster.
+                                var gameScore = getGameScore(match);
+                                if (gameScore) totals.g = (team === match.t1 ? gameScore.a : gameScore.b);
+                                tHtml += "<tr class='team-total-row'><td colspan='2' class='team-total-label'>" + escapeHtml(team) + " Total</td><td>" + totals.g + "</td><td>" + totals.a + "</td><td>" + totals.b + "</td><td>" + totals.ht + "</td><td>" + totals.ct + "</td></tr>";
+                            }
+                        });
+                    });
+                    document.getElementById(gKey + "-table").innerHTML = tHtml;
+                    updateSortHeader(gKey);
+
+                    // Also show a compact team-total summary below the table.
+                    var totalsHtml = "<div class='team-total-summary'><div class='team-total-title'>Team Totals</div>";
+                    [match.t1, match.t2].forEach(function(team) {
+                        var totals = Object.keys(gameStats).reduce(function(acc, pKey){
+                            var p = gameStats[pKey];
+                            if (p.team === team) { acc.a += p.a; acc.b += p.b; acc.ht += p.ht; acc.ct += p.ct; acc.f += p.f; }
+                            return acc;
+                        }, {g:0,a:0,b:0,ht:0,ct:0,f:0});
+                        var gameScore = getGameScore(match);
+                        if (gameScore) totals.g = (team === match.t1 ? gameScore.a : gameScore.b);
+                        totalsHtml += "<div style='margin:8px 0 10px; font-weight:800; color:" + (teamColors[team]||'#374151') + ";'>" + escapeHtml(team) + "</div><div class='team-total-grid'>" +
+                            "<div class='team-total-stat'>Score<strong>" + totals.g + "</strong></div>" +
+                            "<div class='team-total-stat'>Assist<strong>" + totals.a + "</strong></div>" +
+                            "<div class='team-total-stat'>Block<strong>" + totals.b + "</strong></div>" +
+                            "<div class='team-total-stat'>Handler Turnover<strong>" + totals.ht + "</strong></div>" +
+                            "<div class='team-total-stat'>Cutter Turnover<strong>" + totals.ct + "</strong></div></div>";
+                    });
+                    totalsHtml += "</div>";
+                    var tableEl = document.getElementById(gKey + "-table");
+                    var oldSummary = tableEl.parentElement.nextElementSibling;
+                    if (oldSummary && oldSummary.classList.contains("team-total-summary")) oldSummary.remove();
+                    tableEl.parentElement.insertAdjacentHTML("afterend", totalsHtml);
+                    var chartDiv = document.getElementById(gKey + "-chart"); var lines = match.raw.trim().split("\n"); var pts = []; var maxScore = 0;
+                    for (var k = 0; k < lines.length; k++) {
+                        var parsed = parsePointLine(lines[k]);
+                        if (parsed && !isNaN(parsed.a) && !isNaN(parsed.b)) {
+                            // League-data scores are stored/displayed exactly as written
+                            // in the log (the two numbers are the scoreboard at that point).
+                            // Do not flip the pair based on which team scored.
+                            var scoreA = parsed.a, scoreB = parsed.b;
+                            var lblText = scoreA + "-" + scoreB;
+                            var hvr = parsed.play || lblText;
+                            if (scoreA > maxScore) maxScore = scoreA; if (scoreB > maxScore) maxScore = scoreB; pts.push({ lbl: lblText, scoreA: scoreA, scoreB: scoreB, textLog: hvr, teamCode: parsed.code, caption: (hoverCaptions["w" + activeWeek] && hoverCaptions["w" + activeWeek][gKey] && hoverCaptions["w" + activeWeek][gKey][pts.length]) || "" });
+                        }
+                    }
+                    // Store each player's running total through every point in this game.
+                    // These totals are used by the hover tooltip, so a player's third goal
+                    // displays as "Goal: Name (3)" on the point where it happened.
+                    var runningCounts = {};
+                    pts.forEach(function(pt) {
+                        var ev = parsePointEvents(pt.textLog);
+                        ["Goal", "Assist", "Block", "HTurn", "CTurn", "Foul"].forEach(function(type) {
+                            ev[type].forEach(function(name) {
+                                if (!runningCounts[type]) runningCounts[type] = {};
+                                runningCounts[type][name] = (runningCounts[type][name] || 0) + 1;
+                            });
+                        });
+                        pt.eventCounts = JSON.parse(JSON.stringify(runningCounts));
+                    });
+
+                    chartDiv.innerHTML = "";
+                    if (pts.length > 0) {
+                        var pL = 45, pR = 45, pT = 25, pB = 40, baseW = Math.max(900, pts.length * 55), w = baseW, h = 300, cH = h - pT - pB; var step = (w - pL - pR) / (pts.length - 1 || 1); var yMax = maxScore === 0 ? 3 : maxScore + 1; var ns = "http://www.w3.org/2000/svg"; var svg = document.createElementNS(ns, "svg");
+                        svg.setAttribute("width", w); svg.setAttribute("height", h); svg.setAttribute("viewBox", "0 0 " + w + " " + h); svg.style.width = w + "px"; svg.style.maxWidth = "none";
+                        for (var i = 0; i <= yMax; i++) { 
+                            var y = h - pB - ((i / yMax) * cH); var line = document.createElementNS(ns, "line"); line.setAttribute("x1", pL); line.setAttribute("y1", y); line.setAttribute("x2", w - pR); line.setAttribute("y2", y); line.setAttribute("stroke", "#f3f4f6"); svg.appendChild(line);
+                            var txt = document.createElementNS(ns, "text"); txt.setAttribute("x", pL - 8); txt.setAttribute("y", y + 4); txt.setAttribute("font-size", "10"); txt.setAttribute("fill", "#9ca3af"); txt.setAttribute("text-anchor", "end"); txt.textContent = i; svg.appendChild(txt);
+                        }
+                        var p1 = [], p2 = [];
+
+                        // Build line paths first so interactive dots are always on top.
+                        pts.forEach(function(pt, idx) {
+                            var x = pL + (idx * step);
+                            var y1 = h - pB - ((pt.scoreA / yMax) * cH);
+                            var y2 = h - pB - ((pt.scoreB / yMax) * cH);
+                            p1.push((idx === 0 ? "M " : " L ") + x + " " + y1);
+                            p2.push((idx === 0 ? "M " : " L ") + x + " " + y2);
+                        });
+
+                        var pathA = document.createElementNS(ns, "path");
+                        pathA.setAttribute("d", p1.join(""));
+                        pathA.setAttribute("fill", "none");
+                        pathA.setAttribute("stroke", c1);
+                        pathA.setAttribute("stroke-width", "3.5");
+                        pathA.setAttribute("pointer-events", "none");
+                        svg.appendChild(pathA);
+
+                        var pathB = document.createElementNS(ns, "path");
+                        pathB.setAttribute("d", p2.join(""));
+                        pathB.setAttribute("fill", "none");
+                        pathB.setAttribute("stroke", c2);
+                        pathB.setAttribute("stroke-width", "3.5");
+                        pathB.setAttribute("pointer-events", "none");
+                        svg.appendChild(pathB);
+
+                        pts.forEach(function(pt, idx) {
+                            var x = pL + (idx * step);
+                            var y1 = h - pB - ((pt.scoreA / yMax) * cH);
+                            var y2 = h - pB - ((pt.scoreB / yMax) * cH);
+
+                            // When both teams have the same score, offset the dots slightly
+                            // so both points remain independently hoverable.
+                            var samePoint = (y1 === y2);
+                            var xA = samePoint ? x - 4 : x;
+                            var xB = samePoint ? x + 4 : x;
+                            var scoringTeam = (pt.teamCode === teamCodeForName(match.t1)) ? match.t1 : (pt.teamCode === teamCodeForName(match.t2)) ? match.t2 : "";
+                            var eventHtmlA = formatPointDetails(pt.textLog, match.t1, scoringTeam, pt.eventCounts);
+                            var eventHtmlB = formatPointDetails(pt.textLog, match.t2, scoringTeam, pt.eventCounts);
+                            if (pt.caption) {
+                                var captionHtml = "<div><strong>Caption:</strong> " + escapeHtml(pt.caption) + "</div>";
+                                eventHtmlA = captionHtml + eventHtmlA;
+                                eventHtmlB = captionHtml + eventHtmlB;
+                            }
+
+                            (function(savedScoreA, savedScoreB, savedEventHtmlA, savedEventHtmlB, savedXA, savedXB, savedY1, savedY2) {
+                                var cA = document.createElementNS(ns, "circle");
+                                cA.setAttribute("class", "chart-dot");
+                                cA.setAttribute("cx", savedXA);
+                                cA.setAttribute("cy", savedY1);
+                                cA.setAttribute("r", "6");
+                                cA.setAttribute("fill", c1);
+                                cA.setAttribute("tabindex", "0");
+                                cA.onmouseover = function(e) {
+                                    showTip(e, gKey, savedEventHtmlA,
+                                        match.t1 + " • Score: " + savedScoreA);
+                                };
+                                cA.onmouseout = function() {
+                                    if (!('ontouchstart' in window)) hideTip(gKey);
+                                };
+                                cA.onclick = function(e) {
+                                    if ('ontouchstart' in window) {
+                                        showTip(e, gKey, savedEventHtmlA, match.t1 + " • Score: " + savedScoreA);
+                                    }
+                                };
+                                cA.onfocus = function(e) {
+                                    showTipFromSvgPoint(e, gKey, savedEventHtmlA,
+                                        match.t1 + " • Score: " + savedScoreA, savedXA, savedY1);
+                                };
+                                cA.onblur = function() { hideTip(gKey); };
+                                svg.appendChild(cA);
+
+                                var cB = document.createElementNS(ns, "circle");
+                                cB.setAttribute("class", "chart-dot");
+                                cB.setAttribute("cx", savedXB);
+                                cB.setAttribute("cy", savedY2);
+                                cB.setAttribute("r", "6");
+                                cB.setAttribute("fill", c2);
+                                cB.setAttribute("tabindex", "0");
+                                cB.onmouseover = function(e) {
+                                    showTip(e, gKey, savedEventHtmlB,
+                                        match.t2 + " • Score: " + savedScoreB);
+                                };
+                                cB.onmouseout = function() {
+                                    if (!('ontouchstart' in window)) hideTip(gKey);
+                                };
+                                cB.onclick = function(e) {
+                                    if ('ontouchstart' in window) {
+                                        showTip(e, gKey, savedEventHtmlB, match.t2 + " • Score: " + savedScoreB);
+                                    }
+                                };
+                                cB.onfocus = function(e) {
+                                    showTipFromSvgPoint(e, gKey, savedEventHtmlB,
+                                        match.t2 + " • Score: " + savedScoreB, savedXB, savedY2);
+                                };
+                                cB.onblur = function() { hideTip(gKey); };
+                                svg.appendChild(cB);
+                            })(pt.scoreA, pt.scoreB, eventHtmlA, eventHtmlB, xA, xB, y1, y2);
+
+                            var tlbl = document.createElementNS(ns, "text");
+                            tlbl.setAttribute("x", x);
+                            tlbl.setAttribute("y", h - pB + 16);
+                            tlbl.setAttribute("font-size", "10");
+                            tlbl.setAttribute("font-weight", "600");
+                            tlbl.setAttribute("text-anchor", "middle");
+                            tlbl.setAttribute("fill", "#6b7280");
+                            tlbl.setAttribute("pointer-events", "none");
+                            tlbl.textContent = pt.lbl;
+                            svg.appendChild(tlbl);
+                        });
+
+                        chartDiv.appendChild(svg);
+                        setupChartZoom(gKey, svg, baseW);
+                    } else { var blankPara = document.createElement("p"); blankPara.style.color = "#9ca3af"; blankPara.innerText = "Waiting for data... "; chartDiv.appendChild(blankPara); }
+                }
+            });
+        });
+        var metrics = ["g", "a", "b"]; var labels = { g: "Goals", a: "Assists", b: "Blocks" };
+        renderLeaderBlock("menLeaders", weekStats, "MMP", metrics, labels, 2); renderLeaderBlock("womenLeaders", weekStats, "FMP", metrics, labels);
+        document.getElementById("weeklyDuosTitle").innerText = "🤝 Week " + activeWeek + " End-Zone Connections (Goal/Assist Combos per duo)";
+        renderWeeklyDuos(weeklyDuoStats);
+        renderLeaderBlock("globalMenLeaders", globalSeasonStats, "MMP", metrics, labels); renderLeaderBlock("globalWomenLeaders", globalSeasonStats, "FMP", metrics, labels);        renderSeasonDuos(seasonDuoStats);
+        var seasonTeamTotals = {};
+        Object.keys(rosters).forEach(function(team){ seasonTeamTotals[team] = {g:0,a:0,b:0,ht:0,ct:0,f:0}; });
+        Object.keys(leagueData).forEach(function(wKey){ var wNum = parseInt(wKey.replace("w",""), 10); matchKeys.forEach(function(gKey){
+            var game = leagueData[wKey] && leagueData[wKey][gKey]; if (!game) return;
+            var gs = parseStats(game.raw || "", getUnassignedEvents(wNum, gKey));
+            Object.keys(gs).forEach(function(pKey){ var p = gs[pKey]; if (!seasonTeamTotals[p.team]) seasonTeamTotals[p.team] = {g:0,a:0,b:0,ht:0,ct:0,f:0}; seasonTeamTotals[p.team].a += p.a; seasonTeamTotals[p.team].b += p.b; seasonTeamTotals[p.team].ht += p.ht; seasonTeamTotals[p.team].ct += p.ct; seasonTeamTotals[p.team].f += p.f; });
+            // Season team Score is based on the final scoreboard for each game,
+            // rather than only on Goal events that successfully map to a roster player.
+            var gameScore = getGameScore(game);
+            if (gameScore) {
+                if (seasonTeamTotals[game.t1]) seasonTeamTotals[game.t1].g += gameScore.a;
+                if (seasonTeamTotals[game.t2]) seasonTeamTotals[game.t2].g += gameScore.b;
+            }
+        }); });
+
+        // Season standings: regular-season Weeks 1-6, with each team's score shown for every week.
+        var standingTeams = ["Fire Nation", "Earth Kingdom", "Air Nomads", "Water Tribe"];
+        var standings = {};
+        standingTeams.forEach(function(team){ standings[team] = { wins:0, losses:0, pointsFor:0, weeks:{} }; for (var wn=1; wn<=8; wn++) standings[team].weeks[wn] = null; });
+        function getGameScore(game) {
+            if (!game || !game.raw) return null;
+            var lines = game.raw.split("\n"); var final = null; var hasGoal = false;
+            for (var li=0; li<lines.length; li++) {
+                var parsed = parsePointLine(lines[li]);
+                if (!parsed || isNaN(parsed.a) || isNaN(parsed.b)) continue;
+                var t1Code = teamCodeForName(game.t1), t2Code = teamCodeForName(game.t2);
+                // League-data scores are stored/displayed exactly as written.
+                var scoreA = parsed.a, scoreB = parsed.b;
+                final = { a:scoreA, b:scoreB };
+                if (parsePointEvents(parsed.play).Goal.length) hasGoal = true;
+            }
+            return final && hasGoal ? final : null;
+        }
+        for (var wn2=1; wn2<=8; wn2++) {
+            var wk = leagueData["w" + wn2];
+            if (!wk) continue;
+            matchKeys.forEach(function(gKey){
+                var game = wk[gKey]; if (!game) return; var score = getGameScore(game);
+                if (!score || standingTeams.indexOf(game.t1) === -1 || standingTeams.indexOf(game.t2) === -1) return;
+                standings[game.t1].weeks[wn2] = score.a + "-" + score.b;
+                standings[game.t2].weeks[wn2] = score.b + "-" + score.a;
+                standings[game.t1].pointsFor += score.a;
+                standings[game.t2].pointsFor += score.b;
+                if (score.a > score.b) { standings[game.t1].wins++; standings[game.t2].losses++; }
+                else if (score.b > score.a) { standings[game.t2].wins++; standings[game.t1].losses++; }
+            });
+        }
+        var standingsHtml = "";
+        standingTeams.slice().sort(function(a,b){ var sa=standings[a], sb=standings[b]; if (sb.wins!==sa.wins) return sb.wins-sa.wins; if (sa.losses!==sb.losses) return sa.losses-sb.losses; return sb.pointsFor-sa.pointsFor; }).forEach(function(team){
+            var st = standings[team];
+            standingsHtml += "<tr><td class='season-standings-team' style='color:" + (teamColors[team]||'#374151') + ";'>" + escapeHtml(team) + "</td><td class='season-record'>" + st.wins + "-" + st.losses + "</td>";
+            for (var w=1; w<=7; w++) standingsHtml += "<td class='season-score'>" + (st.weeks[w] || "—") + "</td>";
+            standingsHtml += "</tr>";
+        });
+        document.getElementById("seasonStandings").innerHTML = standingsHtml;
+
+        var seasonTotalsHtml = ""; Object.keys(rosters).forEach(function(team){ var t = seasonTeamTotals[team] || {g:0,a:0,b:0,ht:0,ct:0,f:0}; seasonTotalsHtml += "<div class='season-team-total-card'><div class='season-team-total-name' style='color:" + (teamColors[team]||'#374151') + ";'>" + escapeHtml(team) + "</div><div class='season-team-total-grid'><div class='season-team-total-stat'>Score<strong>" + t.g + "</strong></div><div class='season-team-total-stat'>Assist<strong>" + t.a + "</strong></div><div class='season-team-total-stat'>Block<strong>" + t.b + "</strong></div><div class='season-team-total-stat'>Handler Turnover<strong>" + t.ht + "</strong></div><div class='season-team-total-stat'>Cutter Turnover<strong>" + t.ct + "</strong></div></div></div>"; });
+        document.getElementById("seasonTeamTotals").innerHTML = seasonTotalsHtml;
+
+        // Every rostered player with all season totals, separated into MMP and FMP like the weekly stat tables.
+        var rosterSeasonHtml = "";
+        Object.keys(rosters).forEach(function(team, teamIndex){
+            var players = [];
+            ["Men","Women"].forEach(function(div){
+                rosters[team][div].forEach(function(name){ players.push({ name:name, gender:div === "Men" ? "MMP" : "FMP", g:0,a:0,b:0,ht:0,ct:0,f:0,gp:0 }); });
+            });
+            Object.keys(leagueData).filter(function(k){return parseInt(k.slice(1),10)<=7;}).forEach(function(wKey){ matchKeys.forEach(function(gKey){ var game = leagueData[wKey] && leagueData[wKey][gKey]; if (!game) return; var participants=getGameParticipants(parseInt(wKey.replace("w","")),gKey); players.forEach(function(pl){if(participants.indexOf(pl.name)!==-1)pl.gp+=1;}); var gs = parseStats(game.raw || "", getUnassignedEvents(parseInt(wKey.replace("w","")), gKey)); Object.keys(gs).forEach(function(pKey){ var p=gs[pKey]; if(p.team !== team) return; for(var pi=0;pi<players.length;pi++){ if(players[pi].name===p.name){ players[pi].g+=p.g; players[pi].a+=p.a; players[pi].b+=p.b; players[pi].ht+=p.ht; players[pi].ct+=p.ct; players[pi].f+=p.f; break; } } }); }); });
+            rosterSeasonHtml += "<div class='season-roster-team'><div class='season-roster-team-title' style='color:" + (teamColors[team]||'#374151') + ";'>" + escapeHtml(team) + "</div>";
+            var tableId = "season-roster-table-" + teamIndex;
+            rosterSeasonHtml += "<div class='season-roster-table-wrap'><table id='" + tableId + "' class='season-roster-table'><thead><tr>" +
+                "<th onclick='sortSeasonRoster(" + teamIndex + ",0)'>Player</th><th onclick='sortSeasonRoster(" + teamIndex + ",1)'>Gender</th><th onclick='sortSeasonRoster(" + teamIndex + ",2)'>Games Played</th><th onclick='sortSeasonRoster(" + teamIndex + ",3)'>Score</th><th onclick='sortSeasonRoster(" + teamIndex + ",4)'>Assist</th><th onclick='sortSeasonRoster(" + teamIndex + ",5)'>Block</th><th onclick='sortSeasonRoster(" + teamIndex + ",6)'>Handler Turnover</th><th onclick='sortSeasonRoster(" + teamIndex + ",7)'>Cutter Turnover</th></tr></thead><tbody>";
+            ["MMP","FMP"].forEach(function(gen){
+                var arr = players.filter(function(p){ return p.gender === gen; });
+                arr = sortSeasonRosterPlayers(arr, teamIndex);
+                rosterSeasonHtml += "<tr><td colspan='9' class='table-subgroup-header'>" + gen + "</td></tr>";
+                arr.forEach(function(p){ rosterSeasonHtml += "<tr><td style='padding-left:20px;'><strong>" + escapeHtml(p.name) + "</strong></td><td class='gender-label'>" + p.gender + "</td><td>" + p.gp + "</td><td>" + p.g + "</td><td>" + p.a + "</td><td>" + p.b + "</td><td>" + p.ht + "</td><td>" + p.ct + "</td></tr>"; });
+            });
+            rosterSeasonHtml += "</tbody></table></div></div>";
+        });
+        document.getElementById("seasonRosterStats").innerHTML = rosterSeasonHtml;
+        Object.keys(rosters).forEach(function(team, teamIndex){ updateSeasonRosterSortHeaders(teamIndex); });
+    }
+    function escapeHtml(value) {
+        return String(value).replace(/[&<>"']/g, function(ch) {
+            return ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" })[ch];
+        });
+    }
+
+    function teamCodeForName(teamName) {
+        var codes = { "Fire Nation": "FN", "Earth Kingdom": "EK", "Air Nomads": "AN", "Water Tribe": "WT" };
+        return codes[teamName] || "";
+    }
+
+    function formatPointDetails(logText, hoveredTeam, scoringTeam, eventCounts) {
+        var events = parsePointEvents(logText);
+        eventCounts = eventCounts || {};
+
+        function countedName(type, name) {
+            var count = eventCounts[type] && eventCounts[type][name] ? eventCounts[type][name] : 1;
+            return escapeHtml(name) + " (" + count + ")";
+        }
+
+        function countedList(type, names) {
+            return names.map(function(name) { return countedName(type, name); }).join(", ");
+        }
+
+        var html = "";
+        if (scoringTeam === hoveredTeam) {
+            if (events.Goal.length) {
+                html += "<div><strong>Goal:</strong> " + countedName("Goal", events.Goal[0]) + "</div>";
+            }
+            if (events.Assist.length) {
+                html += "<div><strong>Assist:</strong> " + countedName("Assist", events.Assist[0]) + "</div>";
+            }
+        } else {
+            html += "<div><strong>Point:</strong> No score by " + escapeHtml(hoveredTeam) + "</div>";
+        }
+
+        function teamPlayers(names) {
+            return names.filter(function(name) {
+                var info = lookupPlayer(name);
+                return info && info.team === hoveredTeam;
+            });
+        }
+
+        var blocks = teamPlayers(events.Block);
+        var hturns = teamPlayers(events.HTurn);
+        var cturns = teamPlayers(events.CTurn);
+        var fouls = teamPlayers(events.Foul);
+
+        if (blocks.length) html += "<div><strong>Block" + (blocks.length > 1 ? "s" : "") + ":</strong> " + countedList("Block", blocks) + "</div>";
+        if (hturns.length) html += "<div><strong>Handler turnover" + (hturns.length > 1 ? "s" : "") + ":</strong> " + countedList("HTurn", hturns) + "</div>";
+        if (cturns.length) html += "<div><strong>Cutter turnover" + (cturns.length > 1 ? "s" : "") + ":</strong> " + countedList("CTurn", cturns) + "</div>";
+        if (fouls.length) html += "<div><strong>Foul" + (fouls.length > 1 ? "s" : "") + ":</strong> " + countedList("Foul", fouls) + "</div>";
+
+        return html || "<div><strong>Event:</strong> No recorded event for " + escapeHtml(hoveredTeam) + "</div>";
+    }
+
+    function showTip(e, gKey, detailsHtml, title) {
+        var tip = document.getElementById(gKey + "-tooltip");
+        tip.innerHTML = "<strong>" + escapeHtml(title) + "</strong>" + detailsHtml;
+        tip.style.display = "block";
+
+        // The tooltip is viewport-fixed so it stays next to the visible point
+        // even when the chart has been horizontally scrolled on mobile.
+        var viewportW = document.documentElement.clientWidth || window.innerWidth;
+        var viewportH = document.documentElement.clientHeight || window.innerHeight;
+        var left;
+        var top = e.clientY - tip.offsetHeight - 12;
+
+        // On mobile, center the tooltip around the tapped point so text is less
+        // likely to get clipped against the left edge of the viewport.
+        if (viewportW <= 700) {
+            left = e.clientX - (tip.offsetWidth / 2);
+        } else {
+            left = e.clientX + 12;
+            if (left + tip.offsetWidth > viewportW - 5) {
+                left = e.clientX - tip.offsetWidth - 12;
+            }
+        }
+        left = Math.max(8, Math.min(left, viewportW - tip.offsetWidth - 8));
+
+        if (top < 5) {
+            top = e.clientY + 12;
+        }
+        top = Math.max(5, Math.min(top, viewportH - tip.offsetHeight - 5));
+
+        tip.style.left = left + "px";
+        tip.style.top = top + "px";
+    }
+
+    function showTipFromSvgPoint(e, gKey, detailsHtml, title, svgX, svgY) {
+        var svg = e.target.ownerSVGElement;
+        var svgRect = svg.getBoundingClientRect();
+
+        // The SVG viewBox is 900x200.
+        var x = svgRect.left + (svgX / 900) * svgRect.width;
+        var y = svgRect.top + (svgY / 200) * svgRect.height;
+
+        showTip({ clientX: x, clientY: y }, gKey, detailsHtml, title);
+    }
+
+    function hideTip(gKey) {
+        document.getElementById(gKey + "-tooltip").style.display = "none";
+    }
+
+    buildDashboard();
+</script>
+</body>
+</html>
